@@ -8,4 +8,3 @@ process = subprocess.Popen(
 
 for line in process.stdout:
     print(line.strip())
-
