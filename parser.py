@@ -1,4 +1,9 @@
 import subprocess
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+banwords = os.getenv("banwords").split(",")
 
 process = subprocess.Popen(
     ["git","diff","--staged"],
@@ -7,4 +12,12 @@ process = subprocess.Popen(
 )
 
 for line in process.stdout:
-    print(line.strip())
+    for ban_word in banwords:
+        if ban_word in line and line[0] == "+":
+            print(line)
+            print(
+                '''
+ALLERT SUKA BOY!!!
+DONT PUSH MAFAKA BITCH
+                '''
+            )
