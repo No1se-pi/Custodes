@@ -1,0 +1,2 @@
+API_KEY="cdc63dc7e25c5e276de089b9ebde5d32"
+SSH_KEY="5e276de089b9ebde5d32cdc63dc7e25c"

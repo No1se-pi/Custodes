@@ -1,4 +1,0 @@
-12345
-abcdef
-password=12345
-API_KEY = 12345
