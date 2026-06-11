@@ -14,7 +14,7 @@ You can find the full list of words in the .env file {find_dotenv()}
 """
 }
 
-logo_custodes = """
+logo_custodes = r"""
    |\                 /|
    | \               / |
    |愛\     /\      /静|
