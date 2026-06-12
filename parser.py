@@ -7,14 +7,15 @@ from messeges import *
 
 #______variables and settings______
 load_dotenv() #loading env
+banwords = os.getenv("banwords")
 
-if len(os.getenv("banwords")) > 0: #Protection against missing parameters
-    banwords = [word.strip() for word in os.getenv("banwords").split(",")] #list of all banned words
+if banwords is not None and len(banwords) > 0: #Protection against missing parameters
+    banwords = [word.strip() for word in banwords.split(",") if word.strip()] #list of all banned words
+
 else:
     sys.exit(f"There are no arguments in the \"banwords\" \nvariable .env — {find_dotenv()}") #Returning an error message
 
 strict_compliance = lang_custodes[os.getenv("lang_custodes", "eng")]
-flag_secret = False
 
 #______the basic logic______
 
@@ -50,7 +51,6 @@ def parsing_current_file(current_file):
 
             if ban_word in line and line[0] == "+" and line[0:3] != "+++":
                 blocked_lines.append(line)
-                flag_secret = True
 
     return blocked_lines
 
@@ -59,21 +59,29 @@ def main():
     modified_files=get_modified_file()
     global flag_secret
 
+    output_violations = dict()
+
     if len(modified_files) > 0:
 
 
-        if os.getenv("logo_custodes") == "yes":
-            print(logo_custodes)
-        print(strict_compliance)
-
         for current_file in modified_files:
-            print(current_file,":",end="\n\n")
-            print(*parsing_current_file(current_file),sep="")
-            print("______________")
-        print("end")
+            violations = parsing_current_file(current_file)
+            if len(violations) > 0:
+                output_violations[current_file] = violations
 
-        if flag_secret == True:
+        if len(output_violations) > 0:
+            if os.getenv("logo_custodes") == "yes":
+                print(logo_custodes)
+            print(strict_compliance)
+
+            if os.getenv("output_violations") == "yes":
+                for current_file in output_violations:
+                    print(current_file,":\n",sep="")
+                    print(*output_violations[current_file], sep="",end="_____________________________________\n\n")
+                print("end")
+
             sys.exit(1)
+
         else:
             sys.exit()
 
