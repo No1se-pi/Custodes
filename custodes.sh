@@ -131,7 +131,7 @@ who worked so hard on this utility......
             if [[ $read = "y" ]];then
 
                 # Доделать надо
-
+                echo "Всё будет но не сразу"
             else
                 exit 0
             fi
