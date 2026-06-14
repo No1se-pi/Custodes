@@ -4,7 +4,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "$SCRIPT_DIR"
 
 mkdir -p ~/.local/share/custodes/
-cp custodes.sh parser.py messeges.py README.md requirements.txt .env-exemple ~/.local/share/custodes/
+cp custodes.sh parser.py messeges.py README.md requirements.txt .env ~/.local/share/custodes/
 if (( $? != 0 ));then
     echo "Error creating a working folder or copying files to it"
     exit 1
