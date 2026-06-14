@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from dotenv import find_dotenv
 
 lang_custodes = {
