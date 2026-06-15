@@ -84,12 +84,12 @@ fi
 
 case "$#" in
 
-    help|-h)
+    "help"|"-h")
         echo "$help_text"
         exit 0
         ;;
 
-    init|-i)
+    "init"|"-i")
 
         git rev-parse --is-inside-work-tree > /dev/null 2>&1
 
@@ -119,19 +119,19 @@ case "$#" in
         exit 0
         ;;
 
-    check|-ch)
+    "check"|"-ch")
         ;;
 
-    status|-s)
+    "status"|"-s")
         ;;
 
-    config|-cfg)
+    "config"|"-cfg")
         ;;
 
-    uninstall|-u)
+    "uninstall"|"-u")
         ;;
 
-    about|-a)
+    "about"|"-a")
         echo "$about_text"
         exit 0
         ;;
