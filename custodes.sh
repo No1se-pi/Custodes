@@ -58,6 +58,9 @@ success_hook_text="
 custodes hook has been successfully installed in your repository.
 If you want to delete it, use \"custodes uninstall\"
 "
+vesion_error_text='Your Custodes version is outdated! $version_now
+Do you want to launch an update?
+[yes\no]'
 
 about_text="
    |\                 /|
@@ -122,9 +125,10 @@ case "$1" in
         version_server=$(curl -sSL "https://raw.githubusercontent.com/No1se-pi/Custodes/refs/heads/main/README.md" | grep "Version" | awk '{print $NF}' | tr -d '.')
 
         if (( $version_now < $version_server ));then
-            custodes update
+            eval "echo \"$version_error_text\""
+            
         else
-            echo "Установлена последняя версия Custodes $version_now"
+            echo "The latest version of Custodes is installed $version_now"
             exit 0
         fi
         ;;
