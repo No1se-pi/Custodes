@@ -15,7 +15,7 @@ if banwords is not None and len(banwords) > 0: #Protection against missing param
     banwords = [word.strip() for word in banwords.split(",") if word.strip()] #list of all banned words
 
 else:
-    sys.exit(f"There are no arguments in the \"banwords\" \nvariable .env — {find_dotenv()}") #Returning an error message
+    sys.exit(f"There are no arguments in the \"banwords\" \nvariable .env — {find_dotenv() or "~/.local/share/custodes/"}") #Returning an error message
 
 strict_compliance = lang_custodes[os.getenv("lang_custodes", "eng")]
 
