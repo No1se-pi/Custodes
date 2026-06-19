@@ -38,6 +38,27 @@ Note:
 Custodes scans only staged files, meaning changes added with git add.
 "
 
+pre_commit_text="
+The hooks folder already has a pre-commit script.
+To avoid losing the script, delete it from the directory."
+
+hook_rights_text="
+Error when granting pre-commit hook rights
+We recommend running \"custodes init\" with sudo"
+
+custodes_init_text="
+Use \"custodes init\" in the git repository
+Use \"custodes help\" for see more"
+
+incorrect_input_text="
+Incorrect input, please use \"custodes help\" to use the program correctly.
+"
+
+success_hook_text="
+custodes hook has been successfully installed in your repository.
+If you want to delete it, use \"custodes uninstall\"
+"
+
 about_text="
    |\                 /|
    | \               / |
@@ -55,98 +76,75 @@ WebSite -
 Project by - Yaroslav Boikov (No1se) ^-^
 "
 
-else_text="
-Incorrect input, please use \"custodes help\" to use the program correctly.
-"
 
 if ((  $# != 1  )); then
     echo "$else_text"
     exit 1
 fi
 
-if [[ $1 = "help" || $1 = "-h" ]]; then
-    echo "$help_text"
-    exit 0
+case "$1" in
 
-elif [[ $1 = "init" || $1 = "-i" ]]; then
+    "help"|"-h")
+        echo "$help_text"
+        exit 0
+        ;;
 
-    git rev-parse --is-inside-work-tree > /dev/null 2>&1
+    "init"|"-i")
 
-    if (( $? != 0 )); then
-        echo "Use \"custodes init\" in the git repository"
-        echo "Use \"custodes help\" for see more"
-        exit 1
-    fi
+        git rev-parse --is-inside-work-tree > /dev/null 2>&1
+        (( $? != 0 )) && { echo "$custodes_init_text"; exit 1; }
 
-    git_dir="$(git rev-parse --absolute-git-dir)"
-    cd "$git_dir/hooks"
+        git_dir="$(git rev-parse --absolute-git-dir)"
+        cd "$git_dir/hooks"
 
-    if [[ -f "pre-commit" ]]; then
-        echo "
-The hooks folder already has a pre-commit script.
-To avoid losing the script, delete it from the directory."
-        exit 1
-    fi
+        if [[ -f "pre-commit" ]]; then
+            echo "$pre_commit_text"
+            exit 1
+        fi
 
-    echo "#!/bin/sh
-custodes check" > pre-commit
+        echo -e "#!/bin/sh\ncustodes check" > pre-commit
 
-    chmod 755 pre-commit
+        chmod 755 pre-commit
+        (( $? != 0 )) && { echo "$hook_rights_text"; exit 1; }
 
-    if (( $? != 0 )); then
-        echo "Error when granting pre-commit hook rights"
-        echo "We recommend running \"custodes init\" with sudo"
-        exit 1
-    fi
+        echo "$success_hook_text"
+        exit 0
+        ;;
 
-    exit 0
+    "check"|"-ch")
+        ~/.local/share/custodes/.venv/bin/python ~/.local/share/custodes/parser.py
+        parser_code=$?
+        exit "$parser_code"
+        ;;
 
-elif [[ $1 = "check" || $1 = "-ch" ]]; then
-    ~/.local/share/custodes/.venv/bin/python ~/.local/share/custodes/parser.py
-    parser_code=$?
-    exit "$parser_code"
-    
-elif [[ $1 = "status" || $1 = "-s" ]]; then
-    exit 0
+    "status"|"-s")
+        version_now=$(grep "Version" ~/.local/share/custodes/README.md | awk '{print $NF}' | tr -d '.')
+        version_server=$(curl -sSL "https://raw.githubusercontent.com/No1se-pi/Custodes/refs/heads/main/README.md" | grep "Version" | awk '{print $NF}' | tr -d '.')
 
-elif [[ $1 = "config" || $1 = "-cfg" ]]; then
-
-
-    exit 0
-
-elif [[ $1 = "uninstall" || $1 = "-u" ]]; then
-
-    echo "Are you sure you want to delete Custodes? [y\n]"
-    read confirmation
-    if [[ $read = "y" ]];then
-        echo "Are you REALLY sure you want to delete Custodes \-_-/?! [y\n]"
-        read confirmation
-
-        if [[ $read = "y" ]];then
-            echo "OK, click y one last time 
-if you don't like the product of the poor student 
-who worked so hard on this utility...... 
-[y\n]"
-            read confirmation
-            if [[ $read = "y" ]];then
-
-                # Доделать надо
-                echo "Всё будет но не сразу"
-            else
-                exit 0
-            fi
+        if (( $version_now < $version_server ));then
+            custodes update
         else
+            echo "Установлена последняя версия Custodes $version_now"
             exit 0
         fi
-    else
+        ;;
+
+    "update"|"-up")
+        ;;
+
+    "config"|"-cfg")
+        ;;
+
+    "uninstall"|"-un")
+        ;;
+
+    "about"|"-a")
+        echo "$about_text"
         exit 0
-    fi
+        ;;
 
-elif [[ $1 = "about" || $1 = "-a" ]]; then
-    echo "$about_text"
-    exit 0
-
-else
-    echo "$else_text"
-    exit 1
-fi
+    *)
+        echo "$incorrect_input_text"
+        exit 1
+        ;;
+esac

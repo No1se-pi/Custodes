@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Custodes is a CLI guard for Git commits that scans staged changes and blocks secrets before they reach history.">
+    <meta property="og:title" content="custodes - CLI guard for Git commits">
+    <meta property="og:description" content="Pre-commit protection against API keys, tokens, passwords, and custom forbidden strings.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="assets/custodes-mark.svg">
+    <title>custodes - CLI guard for Git commits</title>
+    <link rel="icon" href="assets/custodes-mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="#top" aria-label="custodes home">
+          <img src="assets/custodes-mark.svg" alt="" width="34" height="34">
+          <span>custodes</span>
+        </a>
+        <nav class="nav" aria-label="Основная навигация">
+          <a href="#features">Возможности</a>
+          <a href="#workflow">Процесс</a>
+          <a href="#download">Скачать</a>
+          <a href="#support">Поддержать</a>
+        </nav>
+        <a class="header-action" href="https://github.com/No1se-pi/Custodes">GitHub</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">pre-commit secret scanner</p>
+          <h1 id="hero-title">custodes</h1>
+          <p class="hero-lead">
+            CLI-страж для Git-коммитов. Проверяет staged changes до коммита и останавливает API keys, tokens,
+            passwords и любые запрещенные строки из конфигурации.
+          </p>
+          <div class="hero-actions" aria-label="Основные действия">
+            <a class="button primary" href="https://github.com/No1se-pi/Custodes">Открыть GitHub</a>
+            <a class="button secondary" href="#download">Скачать</a>
+            <a class="button ghost" href="#support">Поддержать</a>
+          </div>
+          <ul class="signal-list" aria-label="Ключевые сигналы">
+            <li><strong>Git hook</strong>ставится в pre-commit и проверяет индекс перед записью истории.</li>
+            <li><strong>.env rules</strong>поддерживает собственный список banwords для проекта.</li>
+            <li><strong>Fast check</strong>сканирует только добавленные в индекс изменения.</li>
+          </ul>
+        </div>
+        <div class="hero-visual" aria-label="Знак Custodes и пример терминала">
+          <div class="scan-line" aria-hidden="true"></div>
+          <div class="mark-frame">
+            <img class="hero-mark" src="assets/custodes-hero-mark.svg" alt="Animated bronze Custodes eye mark" width="420" height="420">
+          </div>
+          <div class="terminal-panel" aria-label="Terminal preview">
+            <div class="terminal-top">
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-title">custodes check</span>
+            </div>
+            <pre><code><span class="prompt">$</span> git add config.py
+<span class="prompt">$</span> custodes check
+<span class="blocked">Commit blocked by Custodes.</span>
+<span class="warn">Secret-like value found in staged diff.</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <aside class="quick-strip" aria-label="Кратко о проекте">
+        <div class="quick-strip-inner">
+          <span><strong>Статус:</strong> in progress</span>
+          <span><strong>Формат:</strong> Bash + Python CLI</span>
+          <span><strong>Фокус:</strong> commit-time protection</span>
+        </div>
+      </aside>
+
+      <section class="section" id="features">
+        <div class="section-heading">
+          <h2>Минимальный сторож перед каждым коммитом</h2>
+          <p>
+            Custodes не пытается заменить полноценный audit pipeline. Он ловит очевидные секреты там, где цена ошибки
+            самая низкая: до того, как изменения попали в историю.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">01</div>
+            <h3>Проверяет staged diff</h3>
+            <p>Команда <code>custodes check</code> смотрит только файлы, добавленные через <code>git add</code>, и ищет совпадения в новых строках.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">02</div>
+            <h3>Блокирует commit</h3>
+            <p>При найденном секрете CLI завершает проверку с ошибкой, а pre-commit hook не дает коммиту пройти дальше.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">03</div>
+            <h3>Настраивается через .env</h3>
+            <p>Можно задать <code>banwords</code>, включить ASCII-логотип и выбрать язык сообщений для локальной команды.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workflow" id="workflow">
+        <div class="section">
+          <div class="section-heading">
+            <h2>Рабочий процесс без лишней магии</h2>
+            <p>Утилита держится рядом с Git и остается понятной: установил hook, добавил правила, проверил индекс.</p>
+          </div>
+          <div class="timeline">
+            <article class="timeline-item">
+              <h3>Install</h3>
+              <p><code>installer.sh</code> готовит рабочую директорию и команду <code>custodes</code> в локальном окружении.</p>
+            </article>
+            <article class="timeline-item">
+              <h3>Init</h3>
+              <p><code>custodes init</code> добавляет pre-commit hook в текущий Git-репозиторий.</p>
+            </article>
+            <article class="timeline-item">
+              <h3>Check</h3>
+              <p><code>custodes check</code> запускает Python-сканер по staged files и правилам проекта.</p>
+            </article>
+            <article class="timeline-item">
+              <h3>Commit</h3>
+              <p>Если секретов нет, Git продолжает коммит. Если есть, Custodes показывает причину остановки.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="download">
+        <div class="section-heading">
+          <h2>Зона скачивания уже на месте</h2>
+          <p>
+            Пока проект допиливается, секция работает как аккуратная заготовка под релизы, команду установки и changelog.
+          </p>
+        </div>
+        <div class="download-layout">
+          <div class="download-copy">
+            <span class="status-pill">релиз готовится</span>
+            <h3>Сейчас лучше смотреть исходники на GitHub</h3>
+            <p>
+              Когда появится первый стабильный релиз, сюда можно поставить прямую ссылку на GitHub Releases,
+              checksum и короткую команду установки.
+            </p>
+            <div class="download-actions">
+              <a class="button primary" href="https://github.com/No1se-pi/Custodes/releases">GitHub Releases</a>
+              <a class="button secondary" href="https://github.com/No1se-pi/Custodes">Репозиторий</a>
+            </div>
+          </div>
+          <div class="code-block">
+            <div class="code-toolbar">
+              <span>preview-install.sh</span>
+              <button class="copy-button" type="button" data-copy-target="#install-command">Copy</button>
+            </div>
+            <pre id="install-command"><code>git clone https://github.com/No1se-pi/Custodes.git
+cd Custodes
+bash installer.sh
+custodes init</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="support">
+        <div class="section-heading">
+          <h2>Зона поддержки для будущего роста</h2>
+          <p>
+            Сейчас самая полезная поддержка для pet-проекта: звезда, issue с фидбеком и проверка на реальном репозитории.
+          </p>
+        </div>
+        <div class="support-layout">
+          <div class="support-box" aria-label="Варианты поддержки">
+            <div class="support-line">
+              <strong>Звезда</strong>
+              <span>помогает проекту быть заметнее</span>
+            </div>
+            <div class="support-line">
+              <strong>Issue</strong>
+              <span>подходит для багов и идей</span>
+            </div>
+            <div class="support-line">
+              <strong>Донат</strong>
+              <span>место под будущую ссылку</span>
+            </div>
+          </div>
+          <div class="support-copy">
+            <span class="status-pill">поддержка готовится</span>
+            <h3>Кнопка доната появится позже</h3>
+            <p>
+              Разметка уже готова: останется заменить disabled-ссылку на Boosty, GitHub Sponsors или другой способ поддержки.
+            </p>
+            <div class="support-actions">
+              <a class="button primary" href="https://github.com/No1se-pi/Custodes">Поставить star</a>
+              <a class="button secondary" href="https://github.com/No1se-pi/Custodes/issues">Открыть issue</a>
+              <a class="button ghost" href="#support" aria-disabled="true" data-message="Ссылка на поддержку появится позже">Поддержка скоро</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span>custodes © <span data-year></span> Yaroslav Boikov</span>
+        <div class="footer-links">
+          <a href="https://github.com/No1se-pi/Custodes">GitHub</a>
+          <a href="https://github.com/No1se-pi/Custodes/blob/main/LICENSE.md">License</a>
+        </div>
+      </div>
+    </footer>
+
+    <div class="toast" role="status" aria-live="polite"></div>
+    <script src="assets/site.js"></script>
+  </body>
+</html>
