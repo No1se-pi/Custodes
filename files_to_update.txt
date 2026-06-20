@@ -1,0 +1,6 @@
+custodes.sh
+installer.sh
+messeges.py
+parser.py
+README.md
+requirements.txt

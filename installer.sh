@@ -16,7 +16,7 @@ Do you give your consent to install the necessary components?
 [yes\no]"
 
 read confirmation
-[[ ! confirmation == @(yes|Yes|y|Y) ]] && exit 1
+[[ $confirmation == @(yes|Yes|y|Y) ]] || exit 1
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 cd "$SCRIPT_DIR"
@@ -28,8 +28,9 @@ cd ~/.local/share/custodes/
 
 
 sudo apt install python3 python3-pip
-python3 -m venv .venv
+(( $? != 0 )) && { echo "installation error - python3 and pip with sudo rights"; exit 1; }
 
+python3 -m venv .venv
 (( $? != 0 )) && { echo "Creation error .venv"; exit 1; }
 
 source .venv/bin/activate
@@ -58,4 +59,19 @@ chmod 755 ~/.local/bin/custodes
 (( $? != 0 )) && { echo "Error in granting script execution rights"; exit 1; }
 
 echo "Installation of Custodes is completed"
+
+cd "$SCRIPT_DIR"
+if [[ ! ~/.local/share/custodes/ == "$SCRIPT_DIR" ]];then
+
+   echo "Do you want to delete the current git clone folder?
+   [yes\no]"
+   read confirmation
+   [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
+
+   cd ..
+   rm -rf "$SCRIPT_DIR"
+   echo "$SCRIPT_DIR deleted, installation completed"
+fi
+
+
 exit 0

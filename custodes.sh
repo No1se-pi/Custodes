@@ -74,14 +74,14 @@ about_text="
    |  /___________ \   |
 
 GitHub - https://github.com/No1se-pi/Custodes
-WebSite - 
+WebSite - https://no1se-pi.github.io/Custodes/
 
 Project by - Yaroslav Boikov (No1se) ^-^
 "
 
 
 if ((  $# != 1  )); then
-    echo "$else_text"
+    echo "$incorrect_input_text"
     exit 1
 fi
 
@@ -126,7 +126,7 @@ case "$1" in
 
         if (( $version_now < $version_server ));then
             eval "echo \"$version_error_text\""
-            
+            exit 1
         else
             echo "The latest version of Custodes is installed $version_now"
             exit 0
@@ -134,12 +134,77 @@ case "$1" in
         ;;
 
     "update"|"-up")
+        custodes status
+        (( $? == 0 )) && { echo "The latest version of Custodes is installed $version_now"; exit 0; }
+
+        # Инициализируем пути (тильда без кавычек работает правильно)
+        TARGET_DIR=~/.local/share/custodes
+        TEMP_DIR="$TARGET_DIR/temp"
+
+        # Создаем структуру папок, если её нет (-p предотвратит ошибку, если папки существуют)
+        mkdir -p "$TEMP_DIR"
+        cd "$TEMP_DIR" || exit 1
+
+        # 1. Скачиваем список файлов
+        curl -sSL "https://raw.githubusercontent.com/No1se-pi/Custodes/refs/heads/main/files_to_download.txt" > files_to_download.txt
+
+        # 2. Читаем список и скачиваем каждый файл во временную папку
+        while IFS= read -r file || [ -n "$file" ]; do
+            # Пропускаем пустые строки, если они есть в файле
+            [ -z "$file" ] && continue
+            
+            echo "Скачиваю $file..."
+            curl -sSL "https://raw.githubusercontent.com/No1se-pi/Custodes/refs/heads/main/$file" -o "$file"
+        done < files_to_download.txt
+
+        echo "custodes update does not touch .env, in order to avoid conflicts,\nwe recommend comparing .env.exemple in the file README.md"
+
+        # 3. Переносим скачанные файлы на один уровень выше (в целевую папку)
+        while IFS= read -r file || [ -n "$file" ]; do
+            [ -z "$file" ] && continue
+            
+            # -f перезапишет старые файлы новыми без лишних вопросов
+            mv -f "$file" "$TARGET_DIR/$file"
+        done < files_to_download.txt
+
+        # 4. Возвращаемся назад и безопасно удаляем временную папку
+        cd "$TARGET_DIR" || exit 1
+        rm -rf "$TEMP_DIR"
+
+        # 5. Запуск инсталлятора
+        bash ~/.local/share/custodes/installer.sh
         ;;
 
     "config"|"-cfg")
+        nano ~/.local/share/custodes/.env
         ;;
 
     "uninstall"|"-un")
+        echo "Are you sure you want to remove Custodes from your system?
+        [yes\no]"
+        read confirmation
+        [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
+
+        echo "Are you REALLY sure you want to delete Custodes? 0_-
+        [yes\no]"
+        read confirmation
+        [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
+
+        echo "Well, click "yes" if you don't mind the work of a student from Russia and you don't want to support him.
+        ＞︿＜
+        [yes\no]"
+        read confirmation
+        [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
+
+
+        rm -rf ~/.local/share/custodes/ ~/.local/bin/custodes || {
+            echo "Error deleting Custodes folders sudo rights may be required.\nThe system itself does not want to delete the program..."
+            exit 1
+        }
+
+        echo "All system folders of the Custodes program have been deleted ＞﹏＜ 
+        bye........"
+        exit 0
         ;;
 
     "about"|"-a")
