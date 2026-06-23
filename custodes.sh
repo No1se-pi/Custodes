@@ -1,7 +1,57 @@
 #!/bin/bash
 
-selected_lang=$(grep -o -E "ru|eng" "${HOME}/.local/share/custodes/.env" | head -n 1)
-selected_lang=${selected_lang:-eng}
+readonly CUSTODES_HOME="${HOME}/.local/share/custodes"
+readonly CUSTODES_CONFIG="${CUSTODES_HOME}/.env"
+readonly CUSTODES_BIN="${HOME}/.local/bin/custodes"
+readonly DEFAULT_LANG="eng"
+readonly REMOTE_BASE_URL="https://raw.githubusercontent.com/No1se-pi/Custodes/main"
+readonly UPDATE_LIST_FILE="files_to_update.txt"
+
+get_custodes_lang() {
+    local lang=""
+
+    if [[ -f "$CUSTODES_CONFIG" ]]; then
+        lang=$(awk -F= '
+            {
+                sub(/^\357\273\277/, "")
+            }
+            /^[[:space:]]*lang_custodes[[:space:]]*=/ {
+                value = $2
+                sub(/[[:space:]]*#.*/, "", value)
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+                print value
+                exit
+            }
+        ' "$CUSTODES_CONFIG")
+    fi
+
+    case "$lang" in
+        eng|ru) printf '%s\n' "$lang" ;;
+        *) printf '%s\n' "$DEFAULT_LANG" ;;
+    esac
+}
+
+selected_lang="$(get_custodes_lang)"
+
+print_i18n() {
+    local text_var="${1}_${selected_lang}"
+    printf '%s\n' "${!text_var}"
+}
+
+print_i18n_format() {
+    local text_var="${1}_${selected_lang}"
+    local text
+    local replacement
+
+    shift
+    text="${!text_var}"
+
+    for replacement in "$@"; do
+        text="${text/\%s/$replacement}"
+    done
+
+    printf '%s\n' "$text"
+}
 
 #___________eng texts___________
 help_text_eng="
@@ -67,9 +117,48 @@ success_hook_text_eng="
 custodes hook has been successfully installed in your repository.
 If you want to delete it, use \"custodes uninstall\"
 "
-vesion_error_text_eng='Your Custodes version is outdated! $version_now
-Do you want to launch an update?
-[yes\no]'
+
+uninstall_confirm_text_eng="
+Are you sure you want to remove Custodes from your system?
+[yes\no]"
+
+uninstall_confirm_again_text_eng="
+Are you REALLY sure you want to delete Custodes? 0_-
+[yes\no]"
+
+uninstall_support_confirm_text_eng="
+Well, click \"yes\" if you don't mind the work of a student from Russia and you don't want to support him.
+>_<
+[yes\no]"
+
+uninstall_error_text_eng="
+Error deleting Custodes folders. Sudo rights may be required.
+The system itself does not want to delete the program..."
+
+uninstall_success_text_eng="
+All system folders of the Custodes program have been deleted >_<
+bye........"
+
+status_latest_text_eng='The latest version of Custodes is installed: %s'
+
+status_update_available_text_eng='Custodes update is available: %s -> %s
+Run "custodes update" to install it.'
+
+status_error_text_eng='Unable to check Custodes version: %s'
+
+update_already_latest_text_eng='The latest version of Custodes is already installed: %s'
+
+update_start_text_eng='Updating Custodes: %s -> %s'
+
+update_download_text_eng='Downloading %s...'
+
+update_dependencies_text_eng='Updating Python dependencies...'
+
+update_preserve_env_text_eng='Skipping .env to preserve your settings.'
+
+update_success_text_eng='Custodes updated successfully: %s -> %s'
+
+update_error_text_eng='Update failed: %s'
 
 about_text_eng="
    |\                 /|
@@ -158,9 +247,48 @@ success_hook_text_ru="
 custodes hook успешно установлен в вашем репозитории.
 Если вы хотите удалить его, используйте \"custodes uninstall\".
 "
-vesion_error_text_ru='Ваша версия Custodes устарела! $version_now
-Вы хотите запустить обновление?
-[yes/no]'
+
+uninstall_confirm_text_ru="
+Вы уверены, что хотите удалить Custodes из системы?
+[yes\no]"
+
+uninstall_confirm_again_text_ru="
+Вы ТОЧНО уверены, что хотите удалить Custodes? 0_-
+[yes\no]"
+
+uninstall_support_confirm_text_ru="
+Что ж, нажмите \"yes\", если вам не жалко труд студента из России и вы не хотите его поддержать.
+>_<
+[yes\no]"
+
+uninstall_error_text_ru="
+Ошибка удаления папок Custodes. Возможно, нужны права sudo.
+Система сама не хочет удалять программу..."
+
+uninstall_success_text_ru="
+Все системные папки программы Custodes были удалены >_<
+bye........"
+
+status_latest_text_ru='Установлена последняя версия Custodes: %s'
+
+status_update_available_text_ru='Доступно обновление Custodes: %s -> %s
+Запустите "custodes update", чтобы установить его.'
+
+status_error_text_ru='Не удалось проверить версию Custodes: %s'
+
+update_already_latest_text_ru='Уже установлена последняя версия Custodes: %s'
+
+update_start_text_ru='Обновляю Custodes: %s -> %s'
+
+update_download_text_ru='Скачиваю %s...'
+
+update_dependencies_text_ru='Обновляю Python-зависимости...'
+
+update_preserve_env_text_ru='Пропускаю .env, чтобы сохранить ваши настройки.'
+
+update_success_text_ru='Custodes успешно обновлён: %s -> %s'
+
+update_error_text_ru='Ошибка обновления: %s'
 
 about_text_ru="
    |\                 /|
@@ -179,45 +307,95 @@ GitHub проекта - https://github.com/No1se-pi/Custodes
 Для вас старался - Яролсав Бойков (No1se) ^-^
 "
 
+get_readme_version() {
+    local readme_path="$1"
+
+    [[ -f "$readme_path" ]] || return 1
+    grep -m 1 "^# Version" "$readme_path" | awk '{print $NF}'
+}
+
+get_remote_version() {
+    curl -fsSL "${REMOTE_BASE_URL}/README.md" | grep -m 1 "^# Version" | awk '{print $NF}'
+}
+
+version_key() {
+    local version="$1"
+
+    awk -F. -v version="$version" 'BEGIN {
+        split(version, parts, ".")
+        printf "%03d%03d%03d\n", parts[1], parts[2], parts[3]
+    }'
+}
+
+is_version_newer() {
+    local new_version="$1"
+    local old_version="$2"
+
+    [[ "$(version_key "$new_version")" > "$(version_key "$old_version")" ]]
+}
+
+trim_update_line() {
+    local value="$1"
+
+    value="${value%%#*}"
+    value="${value#"${value%%[![:space:]]*}"}"
+    value="${value%"${value##*[![:space:]]}"}"
+    printf '%s\n' "$value"
+}
+
+is_safe_update_path() {
+    local file="$1"
+
+    [[ -n "$file" ]] || return 1
+
+    case "$file" in
+        /*|*\\*|*..*)
+            return 1
+            ;;
+    esac
+
+    return 0
+}
+
 #___________code___________
 
 if ((  $# != 1  )); then
-    v="incorrect_input_text_$selected_lang"; echo "${!v}"
+    print_i18n incorrect_input_text
     exit 1
 fi
 
 case "$1" in
 
     "help"|"-h")
-        v="help_text_$selected_lang"; echo "${!v}"
+        print_i18n help_text
         exit 0
         ;;
 
     "init"|"-i")
 
         git rev-parse --is-inside-work-tree > /dev/null 2>&1
-        (( $? != 0 )) && { v="custodes_init_text_$selected_lang"; echo "${!v}"; exit 1; }
+        (( $? != 0 )) && { print_i18n custodes_init_text; exit 1; }
 
         git_dir="$(git rev-parse --absolute-git-dir)"
         cd "$git_dir/hooks"
 
         if [[ -f "pre-commit" ]]; then
-            v="pre_commit_text_$selected_lang"; echo "${!v}"
+            print_i18n pre_commit_text
             exit 1
         fi
 
         echo -e "#!/bin/sh\ncustodes check" > pre-commit
 
         chmod 755 pre-commit
-        (( $? != 0 )) && { v="hook_rights_text_$selected_lang"; echo "${!v}"; exit 1; }
+        (( $? != 0 )) && { print_i18n hook_rights_text; exit 1; }
 
-        v="success_hook_text_$selected_lang"; echo "${!v}"
+        print_i18n success_hook_text
         exit 0
         ;;
     
     "remove"|"-r")
         git rev-parse --is-inside-work-tree > /dev/null 2>&1
-        (( $? != 0 )) && { v="custodes_remove_text_$selected_lang"; echo "${!v}"; exit 1; }
+        (( $? != 0 )) && { print_i18n custodes_remove_text; exit 1; }
 
         git_dir="$(git rev-parse --absolute-git-dir)"
         cd "$git_dir/hooks"
@@ -226,7 +404,7 @@ case "$1" in
         read confirmation
         [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0        
 
-        rm -f pre-commit || { v="custodes_init_text_$selected_lang"; echo "${!v}"; exit 1; }
+        rm -f pre-commit || { print_i18n custodes_init_text; exit 1; }
         
         echo "Custodes removed from $git_dir"
         exit 0
@@ -239,59 +417,142 @@ case "$1" in
         ;;
 
     "status"|"-s")
-        cd ~
-        version_now=$(grep "Version" "${HOME}/.local/share/custodes/README.md" | awk '{print $NF}' | tr -d '.')
-        version_server=$(curl -sSL "https://raw.githubusercontent.com/No1se-pi/Custodes/refs/heads/main/README.md" | grep "Version" | awk '{print $NF}' | tr -d '.')
+        version_now="$(get_readme_version "${CUSTODES_HOME}/README.md")" || {
+            print_i18n_format status_error_text "installed README.md not found"
+            exit 1
+        }
 
-        if (( $version_now < $version_server ));then
-            eval "v="version_error_text_$selected_lang"; echo "${!v}" "
+        version_server="$(get_remote_version)" || {
+            print_i18n_format status_error_text "remote README.md is unavailable"
+            exit 1
+        }
+
+        if [[ -z "$version_now" || -z "$version_server" ]]; then
+            print_i18n_format status_error_text "version value is empty"
+            exit 1
+        fi
+
+        if is_version_newer "$version_server" "$version_now"; then
+            print_i18n_format status_update_available_text "$version_now" "$version_server"
             exit 1
         else
-            echo "The latest version of Custodes is installed $version_now"
+            print_i18n_format status_latest_text "$version_now"
             exit 0
         fi
         ;;
 
     "update"|"-up")
-        custodes status
-        (( $? == 0 )) && { echo "The latest version of Custodes is installed $version_now"; exit 0; }
+        version_now="$(get_readme_version "${CUSTODES_HOME}/README.md")" || {
+            print_i18n_format update_error_text "installed README.md not found"
+            exit 1
+        }
 
-        # Инициализируем пути (тильда без кавычек работает правильно)
-        TARGET_DIR=~/.local/share/custodes
-        TEMP_DIR="$TARGET_DIR/temp"
+        version_server="$(get_remote_version)" || {
+            print_i18n_format update_error_text "remote README.md is unavailable"
+            exit 1
+        }
 
-        # Создаем структуру папок, если её нет (-p предотвратит ошибку, если папки существуют)
-        mkdir -p "$TEMP_DIR"
-        cd "$TEMP_DIR" || exit 1
+        if [[ -z "$version_now" || -z "$version_server" ]]; then
+            print_i18n_format update_error_text "version value is empty"
+            exit 1
+        fi
 
-        # 1. Скачиваем список файлов
-        curl -sSL "https://raw.githubusercontent.com/No1se-pi/Custodes/refs/heads/main/files_to_download.txt" > files_to_download.txt
+        if ! is_version_newer "$version_server" "$version_now"; then
+            print_i18n_format update_already_latest_text "$version_now"
+            exit 0
+        fi
 
-        # 2. Читаем список и скачиваем каждый файл во временную папку
-        while IFS= read -r file || [ -n "$file" ]; do
-            # Пропускаем пустые строки, если они есть в файле
-            [ -z "$file" ] && continue
-            
-            echo "Скачиваю $file..."
-            curl -sSL "https://raw.githubusercontent.com/No1se-pi/Custodes/refs/heads/main/$file" -o "$file"
-        done < files_to_download.txt
+        mkdir -p "$CUSTODES_HOME" || {
+            print_i18n_format update_error_text "cannot create ${CUSTODES_HOME}"
+            exit 1
+        }
 
-        echo "custodes update does not touch .env, in order to avoid conflicts,\nwe recommend comparing .env.exemple in the file README.md"
+        temp_dir="$(mktemp -d "${CUSTODES_HOME}/update.XXXXXX")" || {
+            print_i18n_format update_error_text "cannot create temporary directory"
+            exit 1
+        }
+        trap 'rm -rf "$temp_dir"' EXIT
 
-        # 3. Переносим скачанные файлы на один уровень выше (в целевую папку)
-        while IFS= read -r file || [ -n "$file" ]; do
-            [ -z "$file" ] && continue
-            
-            # -f перезапишет старые файлы новыми без лишних вопросов
-            mv -f "$file" "$TARGET_DIR/$file"
-        done < files_to_download.txt
+        update_list_path="${temp_dir}/.update-files"
 
-        # 4. Возвращаемся назад и безопасно удаляем временную папку
-        cd "$TARGET_DIR" || exit 1
-        rm -rf "$TEMP_DIR"
+        print_i18n_format update_start_text "$version_now" "$version_server"
 
-        # 5. Запуск инсталлятора
-        bash ~/.local/share/custodes/installer.sh
+        curl -fsSL "${REMOTE_BASE_URL}/${UPDATE_LIST_FILE}" -o "$update_list_path" || {
+            print_i18n_format update_error_text "cannot download ${UPDATE_LIST_FILE}"
+            exit 1
+        }
+
+        while IFS= read -r file || [[ -n "$file" ]]; do
+            file="$(trim_update_line "$file")"
+            [[ -z "$file" ]] && continue
+
+            if ! is_safe_update_path "$file"; then
+                print_i18n_format update_error_text "unsafe path in update list: ${file}"
+                exit 1
+            fi
+
+            if [[ "$file" == ".env" ]]; then
+                print_i18n update_preserve_env_text
+                continue
+            fi
+
+            print_i18n_format update_download_text "$file"
+            mkdir -p "$(dirname "${temp_dir}/${file}")" || {
+                print_i18n_format update_error_text "cannot create temporary path for ${file}"
+                exit 1
+            }
+
+            curl -fsSL "${REMOTE_BASE_URL}/${file}" -o "${temp_dir}/${file}" || {
+                print_i18n_format update_error_text "cannot download ${file}"
+                exit 1
+            }
+        done < "$update_list_path"
+
+        if [[ -f "${temp_dir}/requirements.txt" ]]; then
+            if [[ ! -x "${CUSTODES_HOME}/.venv/bin/python" ]]; then
+                print_i18n_format update_error_text "virtual environment not found; reinstall Custodes"
+                exit 1
+            fi
+
+            print_i18n update_dependencies_text
+            "${CUSTODES_HOME}/.venv/bin/python" -m pip install -r "${temp_dir}/requirements.txt" -q || {
+                print_i18n_format update_error_text "dependency update failed"
+                exit 1
+            }
+        fi
+
+        while IFS= read -r file || [[ -n "$file" ]]; do
+            file="$(trim_update_line "$file")"
+            [[ -z "$file" || "$file" == ".env" ]] && continue
+
+            if ! is_safe_update_path "$file"; then
+                print_i18n_format update_error_text "unsafe path in update list: ${file}"
+                exit 1
+            fi
+
+            mkdir -p "$(dirname "${CUSTODES_HOME}/${file}")" || {
+                print_i18n_format update_error_text "cannot create target path for ${file}"
+                exit 1
+            }
+
+            mv -f "${temp_dir}/${file}" "${CUSTODES_HOME}/${file}" || {
+                print_i18n_format update_error_text "cannot replace ${file}"
+                exit 1
+            }
+        done < "$update_list_path"
+
+        cp "$update_list_path" "${CUSTODES_HOME}/${UPDATE_LIST_FILE}" || {
+            print_i18n_format update_error_text "cannot save ${UPDATE_LIST_FILE}"
+            exit 1
+        }
+
+        [[ -f "${CUSTODES_HOME}/custodes.sh" ]] && chmod 755 "${CUSTODES_HOME}/custodes.sh"
+
+        rm -rf "$temp_dir"
+        trap - EXIT
+
+        print_i18n_format update_success_text "$version_now" "$version_server"
+        exit 0
         ;;
 
     "config"|"-cfg")
@@ -299,36 +560,35 @@ case "$1" in
         ;;
 
     "uninstall"|"-un")
-        echo "Are you sure you want to remove Custodes from your system?\n[yes\no]"
-        read confirmation
+        print_i18n uninstall_confirm_text
+        read -r confirmation
         [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
 
-        echo "Are you REALLY sure you want to delete Custodes? 0_-\n[yes\no]"
-        read confirmation
+        print_i18n uninstall_confirm_again_text
+        read -r confirmation
         [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
 
-        echo "Well, click "yes" if you don't mind the work of a student from Russia and you don't want to support him.
-        ＞︿＜\n[yes\no]"
-        read confirmation
+        print_i18n uninstall_support_confirm_text
+        read -r confirmation
         [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
 
 
         rm -rf ~/.local/share/custodes/ ~/.local/bin/custodes || {
-            echo "Error deleting Custodes folders sudo rights may be required.\nThe system itself does not want to delete the program..."
+            print_i18n uninstall_error_text
             exit 1
         }
 
-        echo "All system folders of the Custodes program have been deleted ＞﹏＜\nbye........"
+        print_i18n uninstall_success_text
         exit 0
         ;;
 
     "about"|"-a")
-        echo "$about_text"
+        print_i18n about_text
         exit 0
         ;;
 
     *)
-        echo "$incorrect_input_text"
+        print_i18n incorrect_input_text
         exit 1
         ;;
 esac
