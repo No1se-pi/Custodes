@@ -4,8 +4,9 @@ readonly CUSTODES_HOME="${HOME}/.local/share/custodes"
 readonly CUSTODES_CONFIG="${CUSTODES_HOME}/.env"
 readonly CUSTODES_BIN="${HOME}/.local/bin/custodes"
 readonly DEFAULT_LANG="eng"
-readonly REMOTE_BASE_URL="https://raw.githubusercontent.com/No1se-pi/Custodes/main"
-readonly UPDATE_LIST_FILE="files_to_update.txt"
+readonly REMOTE_REPO_URL="https://github.com/No1se-pi/Custodes.git"
+readonly REMOTE_BRANCH="release"
+readonly REMOTE_BASE_URL="https://raw.githubusercontent.com/No1se-pi/Custodes/${REMOTE_BRANCH}"
 
 get_custodes_lang() {
     local lang=""
@@ -334,27 +335,10 @@ is_version_newer() {
     [[ "$(version_key "$new_version")" > "$(version_key "$old_version")" ]]
 }
 
-trim_update_line() {
-    local value="$1"
-
-    value="${value%%#*}"
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%"${value##*[![:space:]]}"}"
-    printf '%s\n' "$value"
-}
-
-is_safe_update_path() {
-    local file="$1"
-
-    [[ -n "$file" ]] || return 1
-
-    case "$file" in
-        /*|*\\*|*..*)
-            return 1
-            ;;
-    esac
-
-    return 0
+is_safe_update_target() {
+    [[ -n "$HOME" ]] || return 1
+    [[ "$CUSTODES_HOME" == "${HOME}/.local/share/custodes" ]] || return 1
+    [[ "$CUSTODES_HOME" != "/" && "$CUSTODES_HOME" != "$HOME" ]] || return 1
 }
 
 #___________code___________
@@ -447,8 +431,27 @@ case "$1" in
             exit 1
         }
 
-        version_server="$(get_remote_version)" || {
-            print_i18n_format update_error_text "remote README.md is unavailable"
+        mkdir -p "$CUSTODES_HOME" || {
+            print_i18n_format update_error_text "cannot create ${CUSTODES_HOME}"
+            exit 1
+        }
+
+        temp_dir="$(mktemp -d "${TMPDIR:-/tmp}/custodes-update.XXXXXX")" || {
+            print_i18n_format update_error_text "cannot create temporary directory"
+            exit 1
+        }
+        trap 'rm -rf "$temp_dir"' EXIT
+
+        repo_dir="${temp_dir}/repo"
+
+        print_i18n_format update_download_text "${REMOTE_REPO_URL} (${REMOTE_BRANCH})"
+        git clone --depth 1 --single-branch --branch "$REMOTE_BRANCH" "$REMOTE_REPO_URL" "$repo_dir" || {
+            print_i18n_format update_error_text "cannot clone ${REMOTE_BRANCH} branch"
+            exit 1
+        }
+
+        version_server="$(get_readme_version "${repo_dir}/README.md")" || {
+            print_i18n_format update_error_text "cloned README.md not found"
             exit 1
         }
 
@@ -457,92 +460,43 @@ case "$1" in
             exit 1
         fi
 
-        if ! is_version_newer "$version_server" "$version_now"; then
-            print_i18n_format update_already_latest_text "$version_now"
-            exit 0
-        fi
-
-        mkdir -p "$CUSTODES_HOME" || {
-            print_i18n_format update_error_text "cannot create ${CUSTODES_HOME}"
-            exit 1
-        }
-
-        temp_dir="$(mktemp -d "${CUSTODES_HOME}/update.XXXXXX")" || {
-            print_i18n_format update_error_text "cannot create temporary directory"
-            exit 1
-        }
-        trap 'rm -rf "$temp_dir"' EXIT
-
-        update_list_path="${temp_dir}/.update-files"
-
         print_i18n_format update_start_text "$version_now" "$version_server"
 
-        curl -fsSL "${REMOTE_BASE_URL}/${UPDATE_LIST_FILE}" -o "$update_list_path" || {
-            print_i18n_format update_error_text "cannot download ${UPDATE_LIST_FILE}"
-            exit 1
-        }
+        rm -rf "${repo_dir}/.git"
 
-        while IFS= read -r file || [[ -n "$file" ]]; do
-            file="$(trim_update_line "$file")"
-            [[ -z "$file" ]] && continue
+        if [[ -e "${repo_dir}/.env" ]]; then
+            rm -rf "${repo_dir}/.env"
+            print_i18n update_preserve_env_text
+        fi
 
-            if ! is_safe_update_path "$file"; then
-                print_i18n_format update_error_text "unsafe path in update list: ${file}"
-                exit 1
-            fi
-
-            if [[ "$file" == ".env" ]]; then
-                print_i18n update_preserve_env_text
-                continue
-            fi
-
-            print_i18n_format update_download_text "$file"
-            mkdir -p "$(dirname "${temp_dir}/${file}")" || {
-                print_i18n_format update_error_text "cannot create temporary path for ${file}"
-                exit 1
-            }
-
-            curl -fsSL "${REMOTE_BASE_URL}/${file}" -o "${temp_dir}/${file}" || {
-                print_i18n_format update_error_text "cannot download ${file}"
-                exit 1
-            }
-        done < "$update_list_path"
-
-        if [[ -f "${temp_dir}/requirements.txt" ]]; then
+        if [[ -f "${repo_dir}/requirements.txt" ]]; then
             if [[ ! -x "${CUSTODES_HOME}/.venv/bin/python" ]]; then
                 print_i18n_format update_error_text "virtual environment not found; reinstall Custodes"
                 exit 1
             fi
 
             print_i18n update_dependencies_text
-            "${CUSTODES_HOME}/.venv/bin/python" -m pip install -r "${temp_dir}/requirements.txt" -q || {
+            "${CUSTODES_HOME}/.venv/bin/python" -m pip install -r "${repo_dir}/requirements.txt" -q || {
                 print_i18n_format update_error_text "dependency update failed"
                 exit 1
             }
         fi
 
-        while IFS= read -r file || [[ -n "$file" ]]; do
-            file="$(trim_update_line "$file")"
-            [[ -z "$file" || "$file" == ".env" ]] && continue
+        is_safe_update_target || {
+            print_i18n_format update_error_text "unsafe update target: ${CUSTODES_HOME}"
+            exit 1
+        }
 
-            if ! is_safe_update_path "$file"; then
-                print_i18n_format update_error_text "unsafe path in update list: ${file}"
-                exit 1
-            fi
+        if ! find "$CUSTODES_HOME" -mindepth 1 -maxdepth 1 \
+            ! -name ".env" \
+            ! -name ".venv" \
+            -exec rm -rf -- {} +; then
+            print_i18n_format update_error_text "cannot clean ${CUSTODES_HOME}"
+            exit 1
+        fi
 
-            mkdir -p "$(dirname "${CUSTODES_HOME}/${file}")" || {
-                print_i18n_format update_error_text "cannot create target path for ${file}"
-                exit 1
-            }
-
-            mv -f "${temp_dir}/${file}" "${CUSTODES_HOME}/${file}" || {
-                print_i18n_format update_error_text "cannot replace ${file}"
-                exit 1
-            }
-        done < "$update_list_path"
-
-        cp "$update_list_path" "${CUSTODES_HOME}/${UPDATE_LIST_FILE}" || {
-            print_i18n_format update_error_text "cannot save ${UPDATE_LIST_FILE}"
+        cp -a "${repo_dir}/." "$CUSTODES_HOME/" || {
+            print_i18n_format update_error_text "cannot copy release files"
             exit 1
         }
 

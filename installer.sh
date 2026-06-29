@@ -82,7 +82,7 @@ mkdir -p "$TARGET_DIR"
 (( $? != 0 )) && { echo "Error creating a working folder"; exit 1; }
 
 if [[ "$SCRIPT_DIR" != "$TARGET_DIR" ]]; then
-   cp custodes.sh parser.py messeges.py README.md requirements.txt files_to_update.txt "$TARGET_DIR/"
+   cp custodes.sh parser.py messeges.py README.md requirements.txt "$TARGET_DIR/"
    (( $? != 0 )) && { echo "Error copying files to the working folder"; exit 1; }
 fi
 
