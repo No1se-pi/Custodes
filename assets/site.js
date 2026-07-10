@@ -26,16 +26,19 @@ function setHeaderState() {
 window.addEventListener("scroll", setHeaderState, { passive: true });
 setHeaderState();
 
-document.querySelectorAll("[data-copy-target]").forEach((button) => {
+document.querySelectorAll("[data-copy-target], [data-copy-value]").forEach((button) => {
   button.addEventListener("click", async () => {
-    const target = document.querySelector(button.dataset.copyTarget);
-    const value = target?.innerText.trim();
+    const target = button.dataset.copyTarget
+      ? document.querySelector(button.dataset.copyTarget)
+      : null;
+    const value = button.dataset.copyValue || target?.innerText.trim();
+    const successMessage = button.dataset.copyMessage || "Команда скопирована";
 
     if (!value) return;
 
     try {
       await navigator.clipboard.writeText(value);
-      showToast("Команда скопирована");
+      showToast(successMessage);
     } catch {
       const fallback = document.createElement("textarea");
       fallback.value = value;
@@ -46,7 +49,7 @@ document.querySelectorAll("[data-copy-target]").forEach((button) => {
       fallback.select();
       document.execCommand("copy");
       fallback.remove();
-      showToast("Команда скопирована");
+      showToast(successMessage);
     }
   });
 });
