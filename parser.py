@@ -40,7 +40,7 @@ def get_modified_file():
     return modified_files
 
 #Scans files in the index for secrets
-def parsing_current_file(current_file):
+def parsing_current_file(current_file: str) -> list: 
     blocked_lines = [] #list of all "dangerous" lines
     global flag_secret
     entropy=False
@@ -53,25 +53,32 @@ def parsing_current_file(current_file):
         stdout=subprocess.PIPE,
         text=True
     )
+    entropy_list=""
 
     for line in process.stdout:
 
         if entropy:
 
-            normal=normolize(line)
-            for word in normal:
+            normal_string=normolize(line) # 'API_KEY = XXXXXXXXX' -> 'API_KEY' '=' 'XXXXXXXXX'
+            for word in normal_string:
                 
+                if line[0] != "+":
+                    continue
+            
                 word_bytes = word.encode('utf-8')
                 
                 entropy = shannon_entropy(word_bytes)
-                print(f"Энтропия для '{word}': {entropy:.2f}")
+                if entropy > 4:
+                    entropy_list= entropy_list + f"Потенциально опасная строка: \n{line[1:]} \nЭнтропия равна {entropy}\n\n"
     
+
         for ban_word in banwords:
 
             if ban_word in line and line[0] == "+" and line[0:3] != "+++":
                 blocked_lines.append(line)
 
-    return blocked_lines
+
+    return blocked_lines, entropy_list
 
 #______start______
 def main():
@@ -84,7 +91,7 @@ def main():
 
 
         for current_file in modified_files:
-            violations = parsing_current_file(current_file)
+            violations, entropy_list = parsing_current_file(current_file)
             if len(violations) > 0:
                 output_violations[current_file] = violations
 
@@ -97,8 +104,12 @@ def main():
                 for current_file in output_violations:
                     print(current_file,":\n",sep="")
                     print(*output_violations[current_file], sep="",end="_____________________________________\n\n")
-                print("end")
 
+                if len(entropy_list) > 0: 
+                    print(entropy_list)
+
+                print("end")
+            
             sys.exit(1)
 
         else:
