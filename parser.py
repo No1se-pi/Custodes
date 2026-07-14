@@ -6,6 +6,7 @@ from dotenv import load_dotenv, find_dotenv
 import sys
 
 from messeges import *
+from entropy import shannon_entropy, normolize
 
 #______variables and settings______
 load_dotenv() #loading env
@@ -42,6 +43,10 @@ def get_modified_file():
 def parsing_current_file(current_file):
     blocked_lines = [] #list of all "dangerous" lines
     global flag_secret
+    entropy=False
+
+    if os.getenv("entropy") == "yes":
+         entropy=True
 
     process = subprocess.Popen(
         ["git","diff","--cached", current_file],
@@ -50,6 +55,17 @@ def parsing_current_file(current_file):
     )
 
     for line in process.stdout:
+
+        if entropy:
+
+            normal=normolize(line)
+            for word in normal:
+                
+                word_bytes = word.encode('utf-8')
+                
+                entropy = shannon_entropy(word_bytes)
+                print(f"Энтропия для '{word}': {entropy:.2f}")
+    
         for ban_word in banwords:
 
             if ban_word in line and line[0] == "+" and line[0:3] != "+++":
