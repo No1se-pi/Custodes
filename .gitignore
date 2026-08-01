@@ -1,0 +1,7 @@
+.ruff_cache/
+.custodes/
+__pycache__/
+.agents/
+.sonar/
+venv/
+.env
