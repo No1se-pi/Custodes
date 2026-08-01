@@ -1,4 +1,4 @@
-# Version 1.0.0
+# Version 1.1.0
 
 <p align="center">
   <img src="https://no1se-pi.github.io/Custodes/assets/custodes-hero-mark.svg" alt="Custodes logo" width="180">
@@ -7,312 +7,280 @@
 <h1 align="center">Custodes</h1>
 
 <p align="center">
-  Минимальный CLI-инструмент, который помогает не закоммитить секреты в Git-репозиторий.
+  Локальный pre-commit security pipeline: стоп-слова, энтропия и SonarQube Quality Gate.
 </p>
 
 <p align="center">
-  <a href="https://no1se-pi.github.io/Custodes/">
-    <img src="https://img.shields.io/badge/Open%20landing-Custodes-6C3DFF?style=for-the-badge" alt="Open Custodes landing">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://no1se-pi.github.io/Custodes/">🌐 Лендинг проекта</a>
-  ·
-  <a href="https://github.com/No1se-pi/Custodes">GitHub repository</a>
+  <a href="https://no1se-pi.github.io/Custodes/">Лендинг</a> ·
+  <a href="https://github.com/No1se-pi/Custodes">GitHub</a> ·
+  <a href="docs/ARCHITECTURE.md">Архитектура</a>
 </p>
 
 ---
 
-## Что это за программа?
+## Что делает Custodes
 
-**Custodes** — это небольшой локальный инструмент безопасности для разработчика.
-
-Главная задача Custodes — проверять staged-изменения перед коммитом и блокировать commit, если в нём найдены потенциальные секреты: API-ключи, токены, пароли, приватные ключи или другие запрещённые строки из конфигурации.
-
-Custodes не пытается заменить полноценные инструменты вроде Gitleaks или TruffleHog. Это учебный и расширяемый pet-project, который выполняет одну конкретную задачу: **не дать случайно отправить секреты в репозиторий**.
-
----
-
-## Как это работает?
-
-После установки Custodes создаёт `pre-commit` hook в Git-репозитории.
-
-Цепочка работы выглядит так:
+Custodes проверяет изменения, добавленные в Git index через `git add`, до
+создания коммита. Проверка состоит из последовательных этапов:
 
 ```text
 git commit
-    ↓
-.git/hooks/pre-commit
-    ↓
-custodes check
-    ↓
-сканирование staged-файлов
-    ↓
-секрет найден → commit блокируется
-секретов нет → commit проходит
+  ↓
+managed pre-commit hook
+  ↓
+стоп-слова + высокоэнтропийные токены
+  ├─ нарушение → exit 1 → commit заблокирован
+  ↓
+SonarQube (если включён)
+  ├─ scanner/Quality Gate failed → commit блокируется по настройке
+  ↓
+commit разрешён
 ```
 
-Custodes проверяет именно **staged changes**, то есть изменения, добавленные через:
+SonarQube никогда не запускается, если проверка секретов уже нашла нарушение.
+Это экономит время и не отправляет подозрительный код на анализ.
 
-```bash
-git add <file>
-```
-
----
+Custodes — учебный pet-project и дополнительный локальный барьер. Он не заменяет
+Gitleaks, TruffleHog, серверный CI и правила защиты веток.
 
 ## Возможности
 
-На текущий момент Custodes умеет:
+- поиск пользовательских стоп-слов без учёта регистра;
+- entropy detection для случайных API-токенов и ключей;
+- проверка только добавленных строк staged diff;
+- корректная работа с пробелами в именах файлов;
+- безопасный вывод: найденные значения по умолчанию скрываются;
+- опциональный SonarQube после успешного secret scan;
+- ожидание Quality Gate с возможностью блокировки коммита;
+- Docker и native режимы SonarScanner;
+- интерактивные настройки и цветной CLI;
+- Linux и Windows Git Bash;
+- безопасное обновление из стабильной ветки `release`.
 
-- устанавливать `pre-commit` hook в текущий Git-репозиторий;
-- проверять staged-файлы перед коммитом;
-- искать запрещённые слова и паттерны из `.env`;
-- блокировать commit через exit code `1`;
-- выводить список файлов и строк, где были найдены нарушения;
-- показывать статус установленной версии;
-- открывать конфиг для редактирования;
-- удалять Custodes из системы;
-- обновляться из репозитория проекта.
+## Ветки репозитория
 
----
+| Ветка | Назначение |
+|---|---|
+| `dev` | разработка новых возможностей |
+| `main` | проверенный исходный код проекта |
+| `release` | стабильные файлы, которые получает `custodes update` |
+| `gh-pages` | только `index.html` и `assets/` лендинга |
 
-## Установка
+GitHub Pages нужно настроить на `gh-pages` и `/(root)` в
+`Settings → Pages → Deploy from a branch`.
 
-> Сейчас Custodes ориентирован в первую очередь на Linux / Kali / Debian-like системы.
+## Установка на Windows
 
-Склонируйте репозиторий:
+Требования:
+
+- Windows 10/11;
+- Python 3;
+- Git for Windows с Git Bash;
+- Docker Desktop — только для Docker-режима SonarScanner/SonarQube.
+
+В PowerShell:
+
+```powershell
+git clone https://github.com/No1se-pi/Custodes.git
+cd Custodes
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+Установщик:
+
+- находит Git Bash даже при нестандартном пути установки;
+- копирует Custodes в `%USERPROFILE%\.local\share\custodes`;
+- создаёт отдельный Python venv;
+- создаёт `%USERPROFILE%\.local\bin\custodes.cmd`;
+- добавляет каталог команды в пользовательский `PATH`;
+- не перезаписывает существующий `.env`.
+
+После установки откройте новый терминал:
+
+```powershell
+custodes help
+```
+
+## Установка на Linux
+
+Требуются Git, Bash и Python 3 с модулем `venv`.
 
 ```bash
 git clone https://github.com/No1se-pi/Custodes.git
 cd Custodes
-```
-
-Запустите установщик:
-
-```bash
 bash installer.sh
 ```
 
-После установки проверьте, что команда доступна:
-
-```bash
-custodes help
-```
-
-Если команда не найдена, проверьте, что `~/.local/bin` есть в переменной `PATH`.
-
----
+Если команда не найдена, добавьте `~/.local/bin` в `PATH`.
 
 ## Быстрый старт
 
-Перейдите в нужный Git-репозиторий:
-
-```bash
-cd my-project
-```
-
-Установите hook:
+Внутри нужного репозитория:
 
 ```bash
 custodes init
+custodes settings
 ```
 
-Теперь при обычном коммите Custodes будет запускаться автоматически:
+После этого обычный commit автоматически вызывает pipeline:
 
 ```bash
 git add .
-git commit -m "test commit"
+git commit -m "my change"
 ```
 
-Если в staged-изменениях есть секрет, commit будет заблокирован.
-
----
+Custodes не перезаписывает чужой `pre-commit` hook. Удаляется только hook с
+маркером `Managed by Custodes`.
 
 ## Команды
 
-```bash
-custodes help
+```text
+custodes                         интерактивное меню
+custodes help                    справка
+custodes init                    установить hook
+custodes check                   secrets → entropy → optional SonarQube
+custodes check --no-sonar        выполнить только локальную проверку секретов
+custodes status                  состояние hook и анализаторов
+custodes settings                интерактивные настройки
+custodes settings show           показать настройки с замаскированным токеном
+custodes settings set KEY VALUE  изменить один разрешённый параметр
+custodes sonar status            состояние сервера
+custodes sonar start             запустить существующий container `sonarqube`
+custodes sonar scan              запустить анализ проекта вручную
+custodes sonar logs              последние логи контейнера
+custodes remove                  удалить hook текущего репозитория
+custodes update                  обновиться из ветки release
+custodes uninstall               удалить установленный Custodes
 ```
 
-Показать справку.
+## Настройки
 
-```bash
-custodes init
-```
-
-Установить `pre-commit` hook в текущий Git-репозиторий.
-
-```bash
-custodes check
-```
-
-Вручную проверить staged-файлы на наличие секретов.
-
-```bash
-custodes status
-```
-
-Проверить текущую установленную версию Custodes и наличие обновлений.
-
-```bash
-custodes update
-```
-
-Обновить файлы Custodes из GitHub-репозитория.
-
-```bash
-custodes config
-```
-
-Открыть конфигурационный файл `.env`.
-
-```bash
-custodes uninstall
-```
-
-Удалить Custodes из системы.
-
-```bash
-custodes about
-```
-
-Показать информацию о проекте.
-
----
-
-## Пример `.env`
-
-### Зачем нужен `.env`?
-
-`.env` хранит настройки Custodes:
-
-- список запрещённых слов;
-- нужно ли показывать логотип при блокировке;
-- нужно ли выводить конкретные строки с нарушениями;
-- язык сообщений.
-
-### Пример заполнения
-
-```bash
-banwords=SSH_KEY,API_KEY,password,hash
-
-logo_custodes=yes # values: yes; any other value means no
-
-output_violations=yes # values: yes; any other value means no
-
-lang_custodes=ru # values: eng, ru
-```
-
-### Доступные параметры
-
-#### `banwords`
-
-Список запрещённых слов через запятую.
-
-Пример:
-
-```bash
-banwords=SSH_KEY,API_KEY,password,token
-```
-
-Если в добавленных строках будет найдено одно из этих значений, commit будет заблокирован.
-
-#### `logo_custodes`
-
-Включает или отключает отображение ASCII-логотипа при блокировке.
-
-```bash
-logo_custodes=yes
-```
-
-Любое значение, отличное от `yes`, считается выключенным.
-
-#### `output_violations`
-
-Управляет выводом конкретных строк, где были найдены нарушения.
-
-```bash
-output_violations=yes
-```
-
-Любое значение, отличное от `yes`, считается выключенным.
-
-#### `lang_custodes`
-
-Язык сообщений Custodes.
-
-```bash
-lang_custodes=ru
-```
-
-Доступные значения:
+Пользовательский конфиг находится в:
 
 ```text
-ru  — русский язык
-eng — английский язык
+~/.local/share/custodes/.env
 ```
 
----
+Шаблон: [`config/custodes.env.example`](config/custodes.env.example).
 
-## Пример блокировки
+Основные параметры:
 
-Допустим, в файл добавлена строка:
+| Переменная | Default | Назначение |
+|---|---:|---|
+| `CUSTODES_LANG` | `eng` | `eng` или `ru` |
+| `CUSTODES_BANWORDS` | встроенный список | правила через запятую |
+| `CUSTODES_EXCLUDE_PATHS` | venv и dependencies | glob-паттерны через запятую |
+| `CUSTODES_ENTROPY_ENABLED` | `yes` | включить entropy detection |
+| `CUSTODES_ENTROPY_THRESHOLD` | `4.0` | минимальная энтропия токена |
+| `CUSTODES_ENTROPY_MIN_LENGTH` | `20` | минимальная длина кандидата |
+| `CUSTODES_REVEAL_VALUES` | `no` | показывать потенциальный секрет в терминале |
+| `CUSTODES_SONAR_ENABLED` | `no` | запускать Sonar после secret scan |
+| `CUSTODES_SONAR_MODE` | `docker` | `docker` или `native` |
+| `CUSTODES_SONAR_BLOCK_ON_FAILURE` | `yes` | блокировать commit при ошибке/Quality Gate |
+
+Старые имена `banwords`, `entropy`, `lang_custodes`, `logo_custodes` и
+`output_violations` читаются для обратной совместимости.
+
+Дополнительные project-specific исключения можно хранить в `.custodesignore`,
+по одному glob-паттерну на строку. Используйте их только для синтетических
+fixtures, generated files и документации: такой файл является частью security
+review и не должен скрывать обычные исходники.
+
+### Почему значения секретов скрыты
+
+Security scanner не должен сам копировать найденный API-ключ в terminal log.
+Поэтому вывод выглядит примерно так:
+
+```text
+settings.py:12  high entropy 4.63 >=4.00
+  API_TOKEN=<redacted>
+```
+
+Показывать строку целиком можно через `CUSTODES_REVEAL_VALUES=yes`, но это менее
+безопасный режим.
+
+## Интеграция SonarQube
+
+Custodes рассчитан на уже запущенный локальный SonarQube. Для контейнера с
+именем `sonarqube` доступны:
 
 ```bash
-API_KEY=12345
+custodes sonar start
+custodes sonar status
 ```
 
-После:
+1. Откройте `http://localhost:9000`.
+2. Создайте token: `My Account → Security → Generate Tokens`.
+3. Запустите `custodes settings`.
+4. Вставьте token в пункт `Sonar token` — ввод скрывается.
+5. Включите `SonarQube`.
+
+Не используйте пароль аккаунта в конфиге. Custodes передаёт token scanner-у
+только через переменную окружения `SONAR_TOKEN` и не печатает его в командной
+строке.
+
+Настройки проекта лежат в [`sonar-project.properties`](sonar-project.properties).
+В Docker-режиме официальный образ SonarScanner монтирует текущий Git repository
+read-only по смыслу анализа, а служебный результат пишет в игнорируемую `.sonar`.
+
+`sonar.qualitygate.wait=true` заставляет scanner дождаться Quality Gate. Если
+gate не пройден, scanner возвращает ненулевой exit code и commit блокируется при
+`CUSTODES_SONAR_BLOCK_ON_FAILURE=yes`.
+
+Важно: полный Sonar-анализ на каждый commit может быть медленным. Его можно
+отключить и запускать вручную через `custodes sonar scan`, оставив быстрый
+secret scan в hook.
+
+## Entropy detection
+
+Энтропия не пытается понять назначение переменной. Она ищет длинные токены с
+разнообразным набором символов и вычисляет Shannon entropy в битах на символ.
+
+Для снижения ложных срабатываний:
+
+- проверяются только добавленные строки;
+- default minimum length равен 20;
+- отбрасываются повторяющиеся значения и явные placeholder-строки;
+- порог ограничен безопасным диапазоном `2.5..8.0`;
+- секреты не выводятся целиком.
+
+Если проект содержит много сгенерированных идентификаторов, поднимите threshold
+или minimum length через `custodes settings`.
+
+## Разработка и тесты
+
+На Windows команды выполняются именно через Git Bash:
 
 ```bash
-git add .
-git commit -m "add config"
+./venv/Scripts/python.exe -m pip install -r requirements-dev.txt
+./venv/Scripts/python.exe -m unittest discover -s tests -v
+./venv/Scripts/python.exe -m compileall -q parser.py custodes
+./venv/Scripts/python.exe -m ruff check custodes parser.py tests
+./venv/Scripts/python.exe -m ruff format --check custodes parser.py tests
+find lib locales -name '*.sh' -print0 | xargs -0 bash -n
+bash ./tests/test_cli.sh
 ```
 
-Custodes найдёт запрещённое слово `API_KEY` и остановит commit.
+Тесты создают временные Git-репозитории и проверяют реальный staged diff:
+стоп-слова, entropy-only блокировку, удалённые строки и имена с пробелами.
 
----
+Подробное устройство проекта и правила изменения модулей описаны в
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
-## Важные ограничения
+## Ограничения
 
-Custodes — это локальная защита на уровне Git hook, поэтому есть ограничения:
-
-- `git commit --no-verify` может обойти `pre-commit` hook;
-- инструмент пока не является заменой полноценным secret-scanner решениям;
-- текущая версия ориентирована на Linux;
-- правила поиска пока простые и основаны на списке `banwords`;
-- возможны ложные срабатывания.
-
----
-
-## Roadmap
-
-Планируемые улучшения:
-
-- более точная работа с Git diff;
-- вывод номеров строк;
-- regex-правила для токенов, приватных ключей и API-ключей;
-- entropy detection для случайных секретов;
-- allowlist для файлов и значений;
-- более аккуратный update/uninstall;
-- Windows-версия;
-- сборка в единый исполняемый файл.
-
----
+- `git commit --no-verify` обходит локальный hook;
+- entropy detection остаётся эвристикой и может давать false positive;
+- SonarQube требует доступный server и отдельный token;
+- Docker-режим впервые загружает образ SonarScanner и анализаторы;
+- локальный hook не заменяет проверку в защищённом серверном CI.
 
 ## Автор
 
-Project by **Yaroslav Boikov / No1se**.
+Yaroslav Boikov / No1se
 
 GitHub: <https://github.com/No1se-pi/Custodes>
 
 Website: <https://no1se-pi.github.io/Custodes/>
 
----
-
-## Дисклеймер
-
-Custodes создан как pet-project и учебный инструмент для практики Git, Bash, Python и DevSecOps-подходов.
-
-Используйте его аккуратно и проверяйте конфигурацию перед применением в важных репозиториях.
+Custodes создан как учебный проект для практики Git, Bash, Python и DevSecOps.

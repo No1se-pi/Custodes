@@ -1,145 +1,115 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -o pipefail
 
+# Installer поддерживает Linux и Windows Git Bash. Он не удаляет исходный clone:
+# такое поведение неожиданно и опасно для каталога, где пользователь мог работать.
 readonly TARGET_DIR="${HOME}/.local/share/custodes"
 readonly BIN_DIR="${HOME}/.local/bin"
 readonly ENV_FILE="${TARGET_DIR}/.env"
-
-selected_lang="eng"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 select_language() {
-   local language
+    local answer
+    while true; do
+        printf 'Select language / Выберите язык:\n1) English\n2) Русский\n> ' >&2
+        read -r answer
+        case "${answer,,}" in
+            ""|1|en|eng|english) selected_language=eng; return ;;
+            2|ru|rus|russian|русский) selected_language=ru; return ;;
+            *) printf 'Enter 1/2 or eng/ru.\n' >&2 ;;
+        esac
+    done
+}
 
-   while true; do
-      echo "Select Custodes language:"
-      echo "1) English"
-      echo "2) Russian"
-      echo "[1/2, eng/ru]"
-      read -r language
-
-      case "$language" in
-         ""|1|en|eng|EN|ENG|English|english)
-            selected_lang="eng"
+find_system_python() {
+    local command_name candidate
+    for command_name in python3 python; do
+        candidate="$(command -v "$command_name" 2>/dev/null || true)"
+        [[ -n "$candidate" ]] || continue
+        # Windows Store создаёт python3.exe alias, который существует, но не
+        # является рабочим интерпретатором. Проверяем запуск, а не только PATH.
+        if "$candidate" -c 'import sys; raise SystemExit(sys.version_info.major != 3)' \
+            >/dev/null 2>&1; then
+            printf '%s\n' "$candidate"
             return 0
-            ;;
-         2|ru|RU|rus|RUS|Russian|russian)
-            selected_lang="ru"
-            return 0
-            ;;
-         *)
-            echo "Please enter 1, 2, eng or ru."
-            ;;
-      esac
-   done
+        fi
+    done
+    return 1
 }
 
-ensure_env_file() {
-   if [[ -f "$ENV_FILE" ]]; then
-      return 0
-   fi
-
-   if [[ -f "$SCRIPT_DIR/.env" ]]; then
-      cp "$SCRIPT_DIR/.env" "$ENV_FILE"
-   else
-      touch "$ENV_FILE"
-   fi
+copy_application() {
+    local item
+    if [[ "$SCRIPT_DIR" == "$TARGET_DIR" ]]; then
+        return 0
+    fi
+    mkdir -p "$TARGET_DIR" "$BIN_DIR" || return 1
+    for item in custodes.sh parser.py README.md LICENSE.md requirements.txt \
+        lib locales custodes config; do
+        [[ -e "${SCRIPT_DIR}/${item}" ]] || {
+            printf 'Missing distribution component: %s\n' "$item" >&2
+            return 1
+        }
+        rm -rf -- "${TARGET_DIR:?}/${item}"
+        cp -a "${SCRIPT_DIR}/${item}" "$TARGET_DIR/" || return 1
+    done
 }
 
-write_language_config() {
-   local lang="$1"
-
-   if grep -qE '^[[:space:]]*lang_custodes[[:space:]]*=' "$ENV_FILE"; then
-      sed -i -E "s/^[[:space:]]*lang_custodes[[:space:]]*=.*/lang_custodes=${lang} # values: eng, ru/" "$ENV_FILE"
-   else
-      printf '\nlang_custodes=%s # values: eng, ru\n' "$lang" >> "$ENV_FILE"
-   fi
+create_config() {
+    local language="$1"
+    if [[ ! -f "$ENV_FILE" ]]; then
+        cp "${TARGET_DIR}/config/custodes.env.example" "$ENV_FILE" || return 1
+    fi
+    if grep -qE '^CUSTODES_LANG=' "$ENV_FILE"; then
+        sed -i -E "s/^CUSTODES_LANG=.*/CUSTODES_LANG=${language}/" "$ENV_FILE"
+    else
+        printf '\nCUSTODES_LANG=%s\n' "$language" >> "$ENV_FILE"
+    fi
+    chmod 600 "$ENV_FILE" 2>/dev/null || true
 }
 
-echo "
-   |\                 /|
-   | \               / |
-   |  \     /\      /  |
-   |  /    /  \     \  |
-   | /    / /\ \     \ |
-   |/    / /()\ \     \|
-   |\   / /____\ \    /|
-   | \ /________\ \  / |
-   |  /___________ \   |
+create_virtualenv() {
+    local python_bin="$1" venv_python
+    "$python_bin" -m venv "${TARGET_DIR}/.venv" || return 1
+    if [[ -x "${TARGET_DIR}/.venv/bin/python" ]]; then
+        venv_python="${TARGET_DIR}/.venv/bin/python"
+    else
+        venv_python="${TARGET_DIR}/.venv/Scripts/python.exe"
+    fi
+    "$venv_python" -m pip install --quiet --upgrade pip || return 1
+    "$venv_python" -m pip install --quiet -r "${TARGET_DIR}/requirements.txt"
+}
 
-Glad to see you ^_^
-custodes needs to create a working directory in ~/.local/share/, as well as the availability of a python interpreter.
-Do you give your consent to install the necessary components?
-[yes\no]"
+create_launcher() {
+    # shellcheck disable=SC2016 # HOME и $@ должны раскрыться при запуске launcher.
+    printf '%s\n' '#!/usr/bin/env bash' \
+        '"${HOME}/.local/share/custodes/custodes.sh" "$@"' > "${BIN_DIR}/custodes" || return 1
+    chmod 755 "${TARGET_DIR}/custodes.sh" "${BIN_DIR}/custodes" || return 1
+}
 
+cat <<'WELCOME'
+╭────────────────────────────────────────────╮
+│  CUSTODES  ·  pre-commit security guard   │
+╰────────────────────────────────────────────╯
+
+Custodes will be installed into ~/.local/share/custodes.
+The command launcher will be created at ~/.local/bin/custodes.
+WELCOME
+printf 'Continue? [y/N] '
 read -r confirmation
-[[ $confirmation == @(yes|Yes|y|Y) ]] || exit 1
+case "${confirmation,,}" in y|yes|д|да) ;; *) exit 0 ;; esac
 
+selected_language=eng
 select_language
+python_bin="$(find_system_python)" || {
+    printf 'Python 3 was not found. Install it and run installer.sh again.\n' >&2
+    exit 2
+}
 
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-cd "$SCRIPT_DIR" || exit 1
+copy_application || { printf 'Cannot copy Custodes files.\n' >&2; exit 2; }
+create_config "$selected_language" || { printf 'Cannot create settings file.\n' >&2; exit 2; }
+create_virtualenv "$python_bin" || { printf 'Cannot create Python environment.\n' >&2; exit 2; }
+create_launcher || { printf 'Cannot create command launcher.\n' >&2; exit 2; }
 
-mkdir -p "$TARGET_DIR"
-(( $? != 0 )) && { echo "Error creating a working folder"; exit 1; }
-
-if [[ "$SCRIPT_DIR" != "$TARGET_DIR" ]]; then
-   cp custodes.sh parser.py messeges.py README.md requirements.txt "$TARGET_DIR/"
-   (( $? != 0 )) && { echo "Error copying files to the working folder"; exit 1; }
-fi
-
-ensure_env_file
-(( $? != 0 )) && { echo "Error creating the .env file"; exit 1; }
-
-write_language_config "$selected_lang"
-(( $? != 0 )) && { echo "Error saving language settings"; exit 1; }
-
-cd "$TARGET_DIR" || exit 1
-
-
-sudo apt install python3 python3-pip
-(( $? != 0 )) && { echo "installation error - python3 and pip with sudo rights"; exit 1; }
-
-python3 -m venv .venv
-(( $? != 0 )) && { echo "Creation error .venv"; exit 1; }
-
-source .venv/bin/activate
-(( $? != 0 )) && { echo "Launch error .venv"; exit 1; }
-
-pip install --upgrade pip -q
-(( $? != 0 )) && { echo "Pip update error"; exit 1; }
-
-pip install -r requirements.txt -q
-(( $? != 0 )) && { echo "Dependency installation error via pip"; exit 1; }
-
-deactivate
-
-
-
-mkdir -p "$BIN_DIR"
-
-echo "#!/bin/bash
-\"${TARGET_DIR}/custodes.sh\" \"\$@\"" > "$BIN_DIR/custodes"
-(( $? != 0 )) && { echo "Error creating a startup command"; exit 1; }
-
-chmod 755 "$TARGET_DIR/custodes.sh"
-(( $? != 0 )) && { echo "Error in granting script execution rights"; exit 1; }
-
-chmod 755 "$BIN_DIR/custodes"
-(( $? != 0 )) && { echo "Error in granting script execution rights"; exit 1; }
-
-echo "Installation of Custodes is completed"
-
-cd "$SCRIPT_DIR"
-if [[ "$SCRIPT_DIR" != "$TARGET_DIR" ]];then
-
-   echo "Do you want to delete the current git clone folder?
-   [yes\no]"
-   read -r confirmation
-   [[ $confirmation == @(yes|Yes|y|Y) ]] || exit 0
-
-   cd ..
-   rm -rf "$SCRIPT_DIR"
-   echo "$SCRIPT_DIR deleted, installation completed"
-fi
-
-
-exit 0
+printf '\nCustodes installed successfully.\n'
+printf 'If the command is not found, add ~/.local/bin to PATH.\n'
+printf 'Next: cd <repository> && custodes init\n'
