@@ -86,7 +86,7 @@ cmd_uninstall() {
     safe_custodes_home || { ui_error "Unsafe uninstall target: $CUSTODES_HOME"; return 2; }
     ui_confirm "Remove Custodes from this system?" || return 0
     rm -rf -- "$CUSTODES_HOME" || return 2
-    rm -f -- "$CUSTODES_BIN" || return 2
+    rm -f -- "$CUSTODES_BIN" "${CUSTODES_BIN}.cmd" || return 2
     ui_success "Custodes was removed. Repository hooks were left untouched."
 }
 

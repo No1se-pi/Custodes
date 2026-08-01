@@ -14,6 +14,7 @@ $InstallDir = Join-Path $env:USERPROFILE ".local\share\custodes"
 $BinDir = Join-Path $env:USERPROFILE ".local\bin"
 $ConfigFile = Join-Path $InstallDir ".env"
 $Launcher = Join-Path $BinDir "custodes.cmd"
+$BashLauncher = Join-Path $BinDir "custodes"
 
 function Find-GitBash {
     $Candidates = @()
@@ -91,9 +92,19 @@ function Install-PythonEnvironment([object[]]$PythonCommand) {
 }
 
 function Install-CustodesLauncher([string]$BashPath) {
+    # Путь через %USERPROFILE% остаётся ASCII в самом .cmd, поэтому Windows
+    # корректно раскрывает кириллицу имени пользователя уже во время запуска.
     # %* сохраняет все аргументы: custodes settings, custodes sonar scan и т.д.
-    $LauncherText = "@echo off`r`nchcp 65001 >nul`r`n`"$BashPath`" `"$InstallDir\custodes.sh`" %*`r`n"
+    $LauncherText = "@echo off`r`nchcp 65001 >nul`r`n`"$BashPath`" `"%USERPROFILE%\.local\share\custodes\custodes.sh`" %*`r`n"
     Set-Content -LiteralPath $Launcher -Value $LauncherText -Encoding ASCII
+
+    # Git Bash предпочитает extensionless executable. HOME раскрывается самим
+    # Bash и потому также не содержит сломанной ASCII-копии Windows username.
+    $BashLauncherText = @'
+#!/usr/bin/env bash
+"${HOME}/.local/share/custodes/custodes.sh" "$@"
+'@
+    Set-Content -LiteralPath $BashLauncher -Value $BashLauncherText -Encoding ASCII
 }
 
 function Add-CustodesToUserPath {
