@@ -1,4 +1,4 @@
-# Version 0.2
+# Version 1.0.0
 
 <p align="center">
   <img src="https://no1se-pi.github.io/Custodes/assets/custodes-hero-mark.svg" alt="Custodes logo" width="180">
