@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Custodes — локальный CLI-страж для Git-коммитов. Проверяет staged changes и блокирует секреты до попадания в историю.">
+    <meta property="og:title" content="Custodes — CLI-страж для Git-коммитов">
+    <meta property="og:description" content="Pre-commit защита от API-ключей, токенов, паролей и пользовательских запрещённых строк. Стабильный релиз v1.0.0 уже доступен.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="assets/custodes-mark.svg">
+    <title>Custodes — защита Git-коммитов от секретов</title>
+    <link rel="icon" href="assets/custodes-mark.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="assets/site.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="#top" aria-label="custodes home">
+          <img src="assets/custodes-mark.svg" alt="" width="34" height="34">
+          <span>custodes</span>
+        </a>
+        <nav class="nav" aria-label="Основная навигация">
+          <a href="#features">Возможности</a>
+          <a href="#workflow">Процесс</a>
+          <a href="#download">Скачать</a>
+          <a href="#support">Поддержать</a>
+          <a href="https://github.com/No1se-pi/Custodes/wiki">Wiki</a>
+        </nav>
+        <a class="header-action" href="https://github.com/No1se-pi/Custodes">GitHub</a>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow">stable release · v1.0.0</p>
+          <h1 id="hero-title">custodes</h1>
+          <p class="hero-lead">
+            CLI-страж для Git-коммитов. Проверяет staged changes до коммита и останавливает API-ключи, токены,
+            пароли и любые запрещённые строки из конфигурации.
+          </p>
+          <div class="hero-actions" aria-label="Основные действия">
+            <a class="button primary" href="https://github.com/No1se-pi/Custodes/releases/tag/v1.0.0">Скачать v1.0.0</a>
+            <a class="button secondary" href="https://github.com/No1se-pi/Custodes">Открыть GitHub</a>
+            <a class="button ghost" href="#support">Поддержать</a>
+          </div>
+          <ul class="signal-list" aria-label="Ключевые сигналы">
+            <li><strong>Git hook</strong>ставится в pre-commit и проверяет индекс перед записью истории.</li>
+            <li><strong>.env rules</strong>поддерживает собственный список banwords для проекта.</li>
+            <li><strong>Fast check</strong>сканирует только добавленные в индекс изменения.</li>
+          </ul>
+        </div>
+        <div class="hero-visual" aria-label="Знак Custodes и пример терминала">
+          <div class="scan-line" aria-hidden="true"></div>
+          <div class="mark-frame">
+            <img class="hero-mark" src="assets/custodes-hero-mark.svg" alt="Animated bronze Custodes eye mark" width="420" height="420">
+          </div>
+          <div class="terminal-panel" aria-label="Terminal preview">
+            <div class="terminal-top">
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-dot"></span>
+              <span class="terminal-title">custodes check</span>
+            </div>
+            <pre><code><span class="prompt">$</span> git add config.py
+<span class="prompt">$</span> custodes check
+<span class="blocked">Commit blocked by Custodes.</span>
+<span class="warn">Secret-like value found in staged diff.</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <aside class="quick-strip" aria-label="Кратко о проекте">
+        <div class="quick-strip-inner">
+          <span><strong>Статус:</strong> stable · v1.0.0</span>
+          <span><strong>Платформа:</strong> Linux · Bash + Python</span>
+          <span><strong>Лицензия:</strong> MIT</span>
+        </div>
+      </aside>
+
+      <section class="section" id="features">
+        <div class="section-heading">
+          <h2>Минимальный сторож перед каждым коммитом</h2>
+          <p>
+            Custodes не пытается заменить полноценный audit pipeline. Он ловит очевидные секреты там, где цена ошибки
+            самая низкая: до того, как изменения попали в историю.
+          </p>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">01</div>
+            <h3>Проверяет staged diff</h3>
+            <p>Команда <code>custodes check</code> смотрит только файлы, добавленные через <code>git add</code>, и ищет совпадения в новых строках.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">02</div>
+            <h3>Блокирует commit</h3>
+            <p>При найденном секрете CLI завершает проверку с ошибкой, а pre-commit hook не дает коммиту пройти дальше.</p>
+          </article>
+          <article class="feature-card">
+            <div class="feature-icon" aria-hidden="true">03</div>
+            <h3>Настраивается через .env</h3>
+            <p>Можно задать <code>banwords</code>, включить ASCII-логотип и выбрать язык сообщений для локальной команды.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="workflow" id="workflow">
+        <div class="section">
+          <div class="section-heading">
+            <h2>Рабочий процесс без лишней магии</h2>
+            <p>Утилита держится рядом с Git и остается понятной: установил hook, добавил правила, проверил индекс.</p>
+          </div>
+          <div class="timeline">
+            <article class="timeline-item">
+              <h3>Install</h3>
+              <p><code>installer.sh</code> готовит рабочую директорию и команду <code>custodes</code> в локальном окружении.</p>
+            </article>
+            <article class="timeline-item">
+              <h3>Init</h3>
+              <p><code>custodes init</code> добавляет pre-commit hook в текущий Git-репозиторий.</p>
+            </article>
+            <article class="timeline-item">
+              <h3>Check</h3>
+              <p><code>custodes check</code> запускает Python-сканер по staged files и правилам проекта.</p>
+            </article>
+            <article class="timeline-item">
+              <h3>Commit</h3>
+              <p>Если секретов нет, Git продолжает коммит. Если есть, Custodes показывает причину остановки.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="download">
+        <div class="section-heading">
+          <h2>Первый стабильный релиз уже доступен</h2>
+          <p>
+            Custodes v1.0.0 готов к установке на Linux. Исходный код открыт, а обновления публикуются через GitHub Releases.
+          </p>
+        </div>
+        <div class="download-layout">
+          <div class="download-copy">
+            <span class="status-pill release-pill">stable · v1.0.0</span>
+            <h3>Custodes можно ставить и использовать</h3>
+            <p>
+              Релиз включает CLI, pre-commit hook, настраиваемые правила через <code>.env</code>, русскую и английскую локализацию,
+              а также команды обновления и удаления.
+            </p>
+            <ul class="release-meta" aria-label="Сведения о релизе">
+              <li>Linux / Debian-like</li>
+              <li>MIT License</li>
+              <li>Bash + Python</li>
+            </ul>
+            <div class="download-actions">
+              <a class="button primary" href="https://github.com/No1se-pi/Custodes/releases/tag/v1.0.0">Открыть v1.0.0</a>
+              <a class="button secondary" href="https://github.com/No1se-pi/Custodes/releases">Все релизы</a>
+              <a class="button ghost" href="https://github.com/No1se-pi/Custodes/wiki">Документация</a>
+            </div>
+          </div>
+          <div class="code-block">
+            <div class="code-toolbar">
+              <span>install.sh</span>
+              <button class="copy-button" type="button" data-copy-target="#install-command">Copy</button>
+            </div>
+            <pre id="install-command"><code>git clone https://github.com/No1se-pi/Custodes.git
+cd Custodes
+bash installer.sh
+custodes init</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section class="section support-section" id="support">
+        <div class="support-heading">
+          <div>
+            <span class="support-eyebrow">Поддержка проекта</span>
+            <h2>Помогите Custodes стать сильнее</h2>
+          </div>
+          <p>
+            Каждый перевод, star и полезный issue помогают выпускать новые проверки,
+            улучшать документацию и делать защиту секретов надёжнее.
+          </p>
+        </div>
+
+        <div class="support-panel">
+          <aside class="support-impact" aria-label="На что идёт поддержка">
+            <div class="support-mark" aria-hidden="true">
+              <img src="assets/custodes-mark.svg" alt="" width="72" height="72">
+            </div>
+            <div class="support-impact-copy">
+              <span>Вклад в open source</span>
+              <h3>Больше проверок.<br>Меньше утечек.</h3>
+              <p>Поддержка остаётся внутри проекта и превращается в понятные улучшения Custodes.</p>
+            </div>
+            <ul class="impact-list">
+              <li><span>01</span>Новые правила поиска</li>
+              <li><span>02</span>Тесты и стабильные релизы</li>
+              <li><span>03</span>Документация и примеры</li>
+            </ul>
+          </aside>
+
+          <div class="support-options">
+            <div class="donation-grid" aria-label="Способы финансовой поддержки">
+              <article class="donation-card ton-card">
+                <div class="donation-heading">
+                  <div class="donation-identity">
+                    <span class="donation-icon" aria-hidden="true">TON</span>
+                    <div>
+                      <span class="donation-kicker">Криптовалюта</span>
+                      <h3>Перевести в сети TON</h3>
+                    </div>
+                  </div>
+                  <span class="status-pill">быстро и напрямую</span>
+                </div>
+                <p>Откройте адрес в совместимом кошельке или скопируйте его вручную.</p>
+                <div class="donation-controls">
+                  <div class="wallet-address">
+                    <code title="UQB_CF6X1rOUJ-YscnOmBnX_RwZqtoZQhiqC-tk5w6wHmMTk">UQB_CF6X…w6wHmMTk</code>
+                    <button
+                      class="copy-button"
+                      type="button"
+                      aria-label="Скопировать TON-адрес"
+                      data-copy-value="UQB_CF6X1rOUJ-YscnOmBnX_RwZqtoZQhiqC-tk5w6wHmMTk"
+                      data-copy-message="TON-адрес скопирован"
+                    >Копировать</button>
+                  </div>
+                  <a
+                    class="button primary"
+                    href="https://app.tonkeeper.com/transfer/UQB_CF6X1rOUJ-YscnOmBnX_RwZqtoZQhiqC-tk5w6wHmMTk"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >Открыть в Tonkeeper</a>
+                </div>
+              </article>
+
+              <article class="donation-card bank-card">
+                <div class="donation-heading">
+                  <div class="donation-identity">
+                    <span class="donation-icon" aria-hidden="true">₽</span>
+                    <div>
+                      <span class="donation-kicker">Банковская карта</span>
+                      <h3>Перевести через банк</h3>
+                    </div>
+                  </div>
+                  <span class="status-pill">СБП</span>
+                </div>
+                <p>Выберите удобный банк и продолжите перевод с заполненными реквизитами.</p>
+                <div class="donation-controls">
+                  <div class="bank-note">
+                    <strong>Сбер или Т-Банк</strong>
+                    <span>сумму перевода выбираете вы</span>
+                  </div>
+                  <a
+                    class="button primary"
+                    href="https://www.sberbank.ru/ru/choise_bank?requisiteNumber=+79264680844&amp;bankCode=100000000004"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >Выбрать банк</a>
+                </div>
+              </article>
+            </div>
+
+            <div class="community-support">
+              <div class="community-copy">
+                <span class="community-icon" aria-hidden="true">★</span>
+                <div>
+                  <span class="community-kicker">Можно поддержать без перевода</span>
+                  <h3>Star и хороший issue тоже двигают проект вперёд</h3>
+                </div>
+              </div>
+              <div class="support-actions">
+                <a class="button secondary" href="https://github.com/No1se-pi/Custodes">Поставить star</a>
+                <a class="button ghost" href="https://github.com/No1se-pi/Custodes/issues">Предложить идею</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <span>custodes © <span data-year></span> Yaroslav Boikov</span>
+        <div class="footer-links">
+          <a href="https://github.com/No1se-pi/Custodes">GitHub</a>
+          <a href="https://github.com/No1se-pi/Custodes/wiki">Wiki</a>
+          <a href="https://github.com/No1se-pi/Custodes/releases/tag/v1.0.0">v1.0.0</a>
+          <a href="https://github.com/No1se-pi/Custodes/blob/main/LICENSE.md">License</a>
+        </div>
+      </div>
+    </footer>
+
+    <div class="toast" role="status" aria-live="polite"></div>
+    <script src="assets/site.js"></script>
+  </body>
+</html>
