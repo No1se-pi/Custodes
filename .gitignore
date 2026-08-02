@@ -1,4 +1,11 @@
 venv/
 __pycache__/
-tests/
 .agents/
+.env
+.sonar/
+.scannerwork/
+.pytest_cache/
+.test-output/
+.coverage
+coverage.xml
+*.pyc

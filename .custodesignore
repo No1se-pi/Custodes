@@ -1,0 +1,8 @@
+# Документация, fixtures и собственный список правил содержат синтетические
+# примеры секретов. Эти пути всё равно проверяются Git review и SonarQube.
+README.md
+docs/**
+tests/**
+config/**
+custodes/config.py
+lib/commands/settings.sh
