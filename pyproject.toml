@@ -4,3 +4,15 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "PIE", "FLY"]
+
+[tool.coverage.run]
+branch = true
+relative_files = true
+source = ["custodes"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+
+[tool.coverage.xml]
+output = "coverage.xml"

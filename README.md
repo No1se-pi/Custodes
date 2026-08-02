@@ -221,7 +221,10 @@ custodes sonar status
 
 Настройки проекта лежат в [`sonar-project.properties`](sonar-project.properties).
 В Docker-режиме официальный образ SonarScanner монтирует текущий Git repository
-read-only по смыслу анализа, а служебный результат пишет в игнорируемую `.sonar`.
+как рабочий каталог. Временные scanner-файлы остаются внутри контейнера.
+Если Quality Gate проверяет coverage, перед scan должен существовать свежий
+`coverage.xml`. В самом Custodes его создаёт команда из раздела разработки;
+файл игнорируется Git и не попадает в release.
 
 `sonar.qualitygate.wait=true` заставляет scanner дождаться Quality Gate. Если
 gate не пройден, scanner возвращает ненулевой exit code и commit блокируется при
@@ -254,6 +257,9 @@ secret scan в hook.
 ```bash
 ./venv/Scripts/python.exe -m pip install -r requirements-dev.txt
 ./venv/Scripts/python.exe -m unittest discover -s tests -v
+./venv/Scripts/python.exe -m coverage run -m unittest discover -s tests -v
+./venv/Scripts/python.exe -m coverage xml
+./venv/Scripts/python.exe -m coverage report
 ./venv/Scripts/python.exe -m compileall -q parser.py custodes
 ./venv/Scripts/python.exe -m ruff check custodes parser.py tests
 ./venv/Scripts/python.exe -m ruff format --check custodes parser.py tests
@@ -266,6 +272,7 @@ bash ./tests/test_cli.sh
 
 Подробное устройство проекта и правила изменения модулей описаны в
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+История пользовательских изменений ведётся в [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Ограничения
 

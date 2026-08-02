@@ -53,6 +53,62 @@ def path_is_excluded(path: str, patterns: tuple[str, ...]) -> bool:
     return any(fnmatchcase(normalized, pattern) for pattern in patterns)
 
 
+def _add_banword_findings(
+    findings: list[Finding],
+    seen: set[tuple[str, int, str, str]],
+    settings: Settings,
+    path: str,
+    line_number: int,
+    text: str,
+) -> None:
+    """Добавляет совпадения banwords и не дублирует одинаковые правила."""
+    lowered = text.lower()
+    for banword in settings.banwords:
+        normalized_rule = banword.lower()
+        key = (path, line_number, "banword", normalized_rule)
+        if normalized_rule not in lowered or key in seen:
+            continue
+        seen.add(key)
+        findings.append(
+            Finding(
+                path=path,
+                line_number=line_number,
+                kind="banword",
+                rule=banword,
+                preview=safe_preview(text, settings.reveal_values),
+            )
+        )
+
+
+def _add_entropy_findings(
+    findings: list[Finding],
+    seen: set[tuple[str, int, str, str]],
+    settings: Settings,
+    path: str,
+    line_number: int,
+    text: str,
+) -> None:
+    """Добавляет высокоэнтропийные токены, если проверка включена."""
+    if not settings.entropy_enabled:
+        return
+    for candidate in entropy_candidates(text, settings.entropy_min_length):
+        entropy = shannon_entropy(candidate)
+        key = (path, line_number, "entropy", candidate)
+        if entropy < settings.entropy_threshold or key in seen:
+            continue
+        seen.add(key)
+        findings.append(
+            Finding(
+                path=path,
+                line_number=line_number,
+                kind="entropy",
+                rule=f">={settings.entropy_threshold:.2f}",
+                preview=safe_preview(text, settings.reveal_values),
+                entropy=entropy,
+            )
+        )
+
+
 def scan_staged(settings: Settings, repo: Path | None = None) -> list[Finding]:
     findings: list[Finding] = []
     seen: set[tuple[str, int, str, str]] = set()
@@ -62,41 +118,14 @@ def scan_staged(settings: Settings, repo: Path | None = None) -> list[Finding]:
     for added in staged_added_lines(root):
         if path_is_excluded(added.path, excluded_paths):
             continue
-        lowered = added.text.lower()
-        for banword in settings.banwords:
-            if banword.lower() not in lowered:
-                continue
-            key = (added.path, added.line_number, "banword", banword.lower())
-            if key not in seen:
-                seen.add(key)
-                findings.append(
-                    Finding(
-                        path=added.path,
-                        line_number=added.line_number,
-                        kind="banword",
-                        rule=banword,
-                        preview=safe_preview(added.text, settings.reveal_values),
-                    )
-                )
-
-        if not settings.entropy_enabled:
-            continue
-        for candidate in entropy_candidates(added.text, settings.entropy_min_length):
-            entropy = shannon_entropy(candidate)
-            if entropy < settings.entropy_threshold:
-                continue
-            key = (added.path, added.line_number, "entropy", candidate)
-            if key in seen:
-                continue
-            seen.add(key)
-            findings.append(
-                Finding(
-                    path=added.path,
-                    line_number=added.line_number,
-                    kind="entropy",
-                    rule=f">={settings.entropy_threshold:.2f}",
-                    preview=safe_preview(added.text, settings.reveal_values),
-                    entropy=entropy,
-                )
-            )
+        arguments = (
+            findings,
+            seen,
+            settings,
+            added.path,
+            added.line_number,
+            added.text,
+        )
+        _add_banword_findings(*arguments)
+        _add_entropy_findings(*arguments)
     return findings

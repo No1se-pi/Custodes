@@ -46,30 +46,30 @@ def _finding_text(finding: Finding, language: str) -> str:
     return f"  {finding.path}:{finding.line_number}  {reason}\n    {finding.preview}"
 
 
-def main() -> int:
-    settings = load_settings()
+def _scan(settings):
+    """Изолирует инфраструктурные ошибки от логики отображения результата."""
     try:
-        findings = scan_staged(settings, Path.cwd())
+        return scan_staged(settings, Path.cwd()), None
     except GitDiffError as error:
-        label = "Ошибка Git" if settings.language == "ru" else "Git error"
-        print(_paint(f"[!] {label}: {error}", "31"), file=sys.stderr)
-        return 2
+        return None, ("git", error)
     except Exception as error:  # noqa: BLE001 - CLI должен вернуть infrastructure code.
-        label = "Ошибка scanner" if settings.language == "ru" else "Scanner error"
-        print(_paint(f"[!] {label}: {error}", "31"), file=sys.stderr)
         if os.getenv("CUSTODES_DEBUG"):
             traceback.print_exc()
-        return 2
+        return None, ("scanner", error)
 
-    if not findings:
-        message = (
-            "Staged-изменения прошли проверку секретов."
-            if settings.language == "ru"
-            else "Staged changes passed the secret scan."
-        )
-        print(_paint(f"[OK] {message}", "32"))
-        return 0
 
+def _print_scan_error(settings, error_info) -> int:
+    kind, error = error_info
+    if kind == "git":
+        label = "Ошибка Git" if settings.language == "ru" else "Git error"
+    else:
+        label = "Ошибка scanner" if settings.language == "ru" else "Scanner error"
+    print(_paint(f"[!] {label}: {error}", "31"), file=sys.stderr)
+    return 2
+
+
+def _print_block(settings, findings: list[Finding]) -> int:
+    """Показывает безопасный отчёт и возвращает код блокировки commit."""
     if settings.show_logo:
         print(_paint(LOGO, "35"))
     title = (
@@ -88,6 +88,23 @@ def main() -> int:
     )
     print(_paint(hint, "90"))
     return 1
+
+
+def main() -> int:
+    settings = load_settings()
+    findings, error_info = _scan(settings)
+    if error_info:
+        return _print_scan_error(settings, error_info)
+
+    if not findings:
+        message = (
+            "Staged-изменения прошли проверку секретов."
+            if settings.language == "ru"
+            else "Staged changes passed the secret scan."
+        )
+        print(_paint(f"[OK] {message}", "32"))
+        return 0
+    return _print_block(settings, findings)
 
 
 if __name__ == "__main__":

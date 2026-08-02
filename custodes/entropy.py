@@ -8,7 +8,9 @@ from math import log2
 
 # Знак ``=`` разделяет имя и значение настройки. Padding base64 на конце
 # безопасно отбрасывается, поэтому включать его в кандидат не нужно.
-TOKEN_RE = re.compile(r"[A-Za-z0-9_+./-]+")
+# ``re.ASCII`` сохраняет прежнюю семантику диапазона A-Z/a-z/0-9, но делает
+# выражение короче и понятнее для статического анализатора.
+TOKEN_RE = re.compile(r"[\w+./-]+", flags=re.ASCII)
 PLACEHOLDER_MARKERS = (
     "changeme",
     "change_me",
@@ -75,9 +77,7 @@ def _looks_like_code_url_or_path(candidate: str) -> bool:
     # Python/JS member expression: ASSIGNMENT_RE.search или client.auth.login.
     return bool(
         "." in candidate
-        and re.fullmatch(
-            r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", candidate
-        )
+        and re.fullmatch(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)+", candidate, re.ASCII)
     )
 
 

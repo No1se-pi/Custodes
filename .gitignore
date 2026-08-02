@@ -6,4 +6,6 @@ __pycache__/
 .scannerwork/
 .pytest_cache/
 .test-output/
+.coverage
+coverage.xml
 *.pyc
